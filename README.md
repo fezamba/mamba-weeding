@@ -8,7 +8,7 @@ O sistema permite confirmação de presença via código, gerenciamento de convi
 ## Estrutura do Repositório
 
 ```
-casamento-app/
+mamba-wedding/
  ├── backend/          # Aplicação Spring Boot 
  ├── frontend/         # Aplicação Angular
  ├── infra/            # Docker Compose, Nginx e configurações de infraestrutura
