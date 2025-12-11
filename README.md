@@ -1,4 +1,4 @@
-# Mamba Weeding – RSVP, Gift Registry and Admin Panel
+# Mamba Wedding – RSVP, Gift Registry and Admin Panel
 
 Este projeto é uma aplicação web completa para gerenciamento de casamento, composta por um site público para convidados e um painel administrativo para os noivos.
 O sistema permite confirmação de presença via código, gerenciamento de convidados, lista de presentes, integração com gateway de pagamento e armazenamento híbrido em MySQL e MongoDB.
