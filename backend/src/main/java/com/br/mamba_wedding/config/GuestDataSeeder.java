@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-@Profile("dev")
+@Profile("dsv")
 public class GuestDataSeeder implements CommandLineRunner {
 
     private final GuestRepository guestRepository;
