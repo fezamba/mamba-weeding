@@ -22,7 +22,7 @@ mamba-wedding/
 
 ### Frontend
 
-* Angular 17+
+* Angular 22
 * TypeScript
 * Angular Router
 * CSS / HTML
@@ -31,8 +31,8 @@ mamba-wedding/
 
 ### Backend
 
-* Java 21+
-* Spring Boot 3+
+* Java 21
+* Spring Boot 4
 * Spring Web
 * Spring Data JPA
 * Spring Data MongoDB
