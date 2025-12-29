@@ -22,7 +22,7 @@ mamba-wedding/
 
 ### Frontend
 
-* Angular 22
+* Angular 20
 * TypeScript
 * Angular Router
 * CSS / HTML
