@@ -18,15 +18,13 @@ mamba-wedding/
 
 ---
 
-## Tecnologias Utilizadas
+## Tech Stack
 
 ### Frontend
 
 * Angular 20
 * TypeScript
 * Angular Router
-* CSS / HTML
-* Bootstrap
 * Angular Material
 
 ### Backend
@@ -36,20 +34,18 @@ mamba-wedding/
 * Spring Web
 * Spring Data JPA
 * Spring Data MongoDB
-* Spring Security + OAuth2
+* Spring Security + OAuth2 - Google
 * Spring Validation
 * Lombok
 
 ### Bancos de Dados
 
-* MySQL 8 (dados core: convidados, presentes, pagamentos, RSVP)
+* MySQL 8 (dados transacionais)
 * MongoDB 8 (recados e logs de eventos)
 
 ### Infraestrutura
 
-* Docker e Docker Compose
-* Nginx
-* Railway (por enquanto)
+* Docker / Docker Compose
 
 ---
 
