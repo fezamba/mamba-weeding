@@ -1,1 +1,52 @@
-<p>rsvp works!</p>
+<div class="container">
+  <h1>RSVP Mamba Wedding 🐍💍</h1>
+
+  <div *ngIf="!guestData() && !successMessage()">
+    <form [formGroup]="lookupForm" (ngSubmit)="onLookup()">
+      <label for="code">Digite o código do seu convite:</label>
+      <input id="code" type="text" formControlName="codigoConvite" placeholder="Ex: MAMBA-123" />
+      
+      <button type="submit" [disabled]="lookupForm.invalid || isLoading()">
+        {{ isLoading() ? 'Buscando...' : 'Buscar Convite' }}
+      </button>
+    </form>
+    
+    <p class="error" *ngIf="errorMessage()">{{ errorMessage() }}</p>
+  </div>
+
+  <div *ngIf="guestData() && !successMessage()">
+    <h2>Olá, {{ guestData()?.nomeCompleto }}!</h2>
+    <p>Situação atual: <strong>{{ guestData()?.statusConvite }}</strong></p>
+
+    <form [formGroup]="actionForm">
+      <div class="form-group">
+        <label>Email:</label>
+        <input type="email" formControlName="email" />
+      </div>
+
+      <div class="form-group">
+        <label>Telefone/WhatsApp:</label>
+        <input type="text" formControlName="telefone" />
+      </div>
+
+      <div class="form-group">
+        <label>Observações (restrições alimentares, etc):</label>
+        <textarea formControlName="observacoes"></textarea>
+      </div>
+
+      <div class="actions">
+        <button type="button" (click)="submitRsvp(true)" class="btn-confirm" [disabled]="isLoading()">
+          Confirmar Presença
+        </button>
+        <button type="button" (click)="submitRsvp(false)" class="btn-decline" [disabled]="isLoading()">
+          Recusar
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div *ngIf="successMessage()" class="success-box">
+    <h3>{{ successMessage() }}</h3>
+    <button (click)="successMessage.set(''); guestData.set(null); lookupForm.reset()">Voltar</button>
+  </div>
+</div>
