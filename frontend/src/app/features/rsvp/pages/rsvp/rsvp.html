@@ -29,6 +29,13 @@
   </div>
 
   <div class="rsvp-card">
+    
+    <div class="nav-header" *ngIf="guestData() && !successMessage()">
+      <button class="btn-back-icon" (click)="resetSearch()">
+        <span class="arrow">←</span> Voltar
+      </button>
+    </div>
+
     <header class="card-header">
       <div class="icon">💍</div>
       <h1>Mamba Wedding</h1>
@@ -61,12 +68,6 @@
 
     <section *ngIf="guestData() && !successMessage()" class="step-section fade-in">
       
-      <div class="nav-header">
-        <button class="btn-back-icon" (click)="resetSearch()">
-          <span class="arrow">←</span> Voltar
-        </button>
-      </div>
-
       <div class="guest-info">
         <h2>Olá, {{ guestData()?.nomeCompleto }}!</h2>
         <span class="status-badge" [class]="guestData()?.statusConvite">

@@ -131,26 +131,26 @@ button {
   width: 100%;
   display: flex;
   justify-content: flex-start;
-  margin-bottom: 15px;
+  margin-bottom: 0.5rem;
 }
 
 .btn-back-icon {
   background: transparent;
   color: #888;
-  font-size: 0.9rem;
-  padding: 8px 0;
+  font-size: 0.85rem;
+  padding: 5px 0;
   border-radius: 4px;
   display: flex;
   align-items: center;
   gap: 6px;
   transition: color 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .btn-back-icon:hover {
   color: var(--primary-black);
 }
-
-.arrow { font-size: 1.2rem; line-height: 0.8; }
 
 .actions { display: flex; flex-direction: column; gap: 10px; margin-top: 2rem; }
 
@@ -196,9 +196,9 @@ button {
   .main-wrapper {
     display: flex;
     flex-direction: column;
-    justify-content: center; 
-    min-height: 100vh;
+    justify-content: center;
     padding: 20px 15px;
+    min-height: 100vh;
   }
 
   .desktop-photos { display: none; }
@@ -228,7 +228,7 @@ button {
   .m-p6 { bottom: 20px; right: -10px; transform: rotate(12deg); }
 
   .rsvp-card {
-    margin: auto; 
+    margin: auto;
     width: 100%;
     max-width: 400px;
     padding: 1.5rem;
