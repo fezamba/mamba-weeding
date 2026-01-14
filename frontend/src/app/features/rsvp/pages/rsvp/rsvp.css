@@ -5,167 +5,155 @@
   --secondary-pink: #f8bbd0;
   --bg-gradient: linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%);
   --white: #ffffff;
-  --shadow-soft: 0 10px 40px -10px rgba(0,0,0,0.15);
   
   display: block;
-  min-height: 100vh;
+  height: 100vh;
+  width: 100vw;
   background: var(--bg-gradient);
   font-family: 'Montserrat', sans-serif;
-  overflow-x: hidden;
+  overflow: hidden;
   position: relative;
 }
 
-/* --- Layout Principal --- */
 .main-wrapper {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
-  padding: 20px;
+  height: 100%;
+  width: 100%;
   position: relative;
 }
 
 .rsvp-card {
-  background: var(--white);
+  background: rgba(255, 255, 255, 0.95);
   width: 100%;
   max-width: 480px;
   padding: 2.5rem;
   border-radius: 20px;
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.1);
   text-align: center;
   border: 1px solid rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(10px);
   position: relative;
   z-index: 20;
+  max-height: 90vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--secondary-pink) transparent;
 }
 
-/* --- Tipografia --- */
+.polaroid {
+  position: absolute;
+  background: white;
+  padding: 8px 8px 30px 8px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.3s ease, z-index 0s;
+  z-index: 1;
+}
+
+.polaroid img { width: 100%; display: block; filter: sepia(15%); border: 1px solid #eee; }
+.polaroid:hover { transform: scale(1.1) rotate(0deg) !important; z-index: 50; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+
+.desktop-photos { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+.desktop-photos .polaroid { width: 150px; }
+
+.p1 { top: 5%; left: 2%; transform: rotate(-15deg); }
+.p2 { top: 30%; left: 5%; transform: rotate(5deg); }
+.p3 { top: 55%; left: 2%; transform: rotate(-8deg); }
+.p4 { bottom: 5%; left: 5%; transform: rotate(12deg); }
+.p5 { top: 10%; left: 20%; transform: rotate(6deg); }
+
+.p6 { top: 5%; right: 2%; transform: rotate(10deg); }
+.p7 { top: 35%; right: 5%; transform: rotate(-5deg); }
+.p8 { top: 60%; right: 2%; transform: rotate(8deg); }
+.p9 { bottom: 5%; right: 5%; transform: rotate(-12deg); }
+.p10 { top: 10%; right: 20%; transform: rotate(-4deg); }
+
+.mobile-photos { display: none; }
+
 h1 { font-family: 'Cinzel', serif; color: var(--primary-black); font-size: 2rem; margin: 0.5rem 0; }
 h2 { font-family: 'Cinzel', serif; color: var(--primary-black); font-size: 1.5rem; }
 .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
 
-/* --- FOTOS POLAROID --- */
-.polaroid {
-  position: absolute;
-  background: white;
-  padding: 12px 12px 40px 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-  transform: rotate(-5deg);
-  z-index: 1;
-  width: 240px;
-  cursor: zoom-in;
-  transition: transform 0.3s ease, z-index 0s 0.3s;
-}
-
-.polaroid img {
-  width: 100%;
-  height: auto;
-  display: block;
-  filter: sepia(20%);
-}
-
-.polaroid:hover {
-  transform: rotate(0deg) scale(1.1);
-  z-index: 30;
-  box-shadow: 0 15px 35px rgba(0,0,0,0.25);
-  transition: transform 0.3s ease, z-index 0s;
-}
-
-.p1 { top: 5%; left: 5%; transform: rotate(-8deg); }
-.p2 { bottom: 5%; right: 5%; transform: rotate(5deg); }
-
-/* --- LIGHTBOX  --- */
-.lightbox-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100vw; height: 100vh;
-  background: rgba(0, 0, 0, 0.9);
-  z-index: 9999;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: zoom-out;
-  padding: 20px;
-}
-
-.lightbox-content {
-  position: relative;
-  max-width: 100%;
-  max-height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.lightbox-content img {
-  max-width: 90vw;
-  max-height: 85vh;
-  border-radius: 4px;
-  box-shadow: 0 0 50px rgba(0,0,0,0.5);
-  border: 10px solid white;
-  background: white;
-}
-
-.close-hint {
-  color: white;
-  margin-top: 15px;
-  font-size: 0.9rem;
-  opacity: 0.8;
-  font-weight: 300;
-}
-
-/* --- Botão VOLTAR --- */
-.btn-back-text {
-  background: none;
-  border: none;
-  color: #999;
-  font-size: 0.85rem;
-  cursor: pointer;
-  padding: 0;
-  margin-bottom: 1rem;
-  display: block;
-  width: 100%;
-  text-align: left;
-  transition: color 0.2s;
-}
-
-.btn-back-text:hover {
-  color: var(--primary-black);
-  text-decoration: underline;
-}
-
-/* --- Inputs e Botões Gerais --- */
 label { display: block; text-align: left; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.5rem; margin-top: 1rem; }
 input, textarea { width: 100%; padding: 14px; border: 2px solid #eee; border-radius: 12px; font-family: inherit; font-size: 1rem; background: #fafafa; box-sizing: border-box; }
 input:focus, textarea:focus { outline: none; border-color: var(--secondary-pink); background: white; }
 button { cursor: pointer; border-radius: 12px; font-weight: 600; font-size: 1rem; border: none;}
 
-/* Botão Buscar */
 .input-group { display: flex; gap: 10px; }
 .input-group button { background: var(--primary-black); color: var(--secondary-pink); padding: 0 24px; white-space: nowrap; }
-
-/* Ações */
 .actions { display: flex; flex-direction: column; gap: 10px; margin-top: 2rem; }
 .btn-confirm { background: var(--primary-black); color: white; padding: 16px; width: 100%; }
 .btn-decline { background: transparent; color: #666; padding: 16px; width: 100%; border: 1px solid #ddd; }
-.btn-decline:hover { background: #ffebee; color: #c62828; border-color: #ffcdd2; }
+.btn-back-text { background: none; border: none; color: #999; font-size: 0.85rem; padding: 0; margin-bottom: 1rem; width: 100%; text-align: left; }
+.btn-back-text:hover { color: var(--primary-black); text-decoration: underline; }
 .btn-outline { background: transparent; border: 2px solid var(--primary-black); color: var(--primary-black); padding: 12px 24px; margin-top: 1rem; }
 
-/* Status Badge */
+.lightbox-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); z-index: 200; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+.lightbox-content img { max-width: 90vw; max-height: 80vh; border: 10px solid white; border-bottom: 30px solid white; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
+
 .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; margin-bottom: 1.5rem; background: #eee; color: #555; }
 .status-badge.CONFIRMADO { background: #e8f5e9; color: #2e7d32; }
 .status-badge.RECUSADO { background: #ffebee; color: #c62828; }
-
-/* Animações */
 .fade-in { animation: fadeIn 0.4s ease-out forwards; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-/* --- Mobile --- */
 @media (max-width: 768px) {
-  .rsvp-card { margin-top: 20px; padding: 1.5rem; }
+  :host {
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .main-wrapper {
+    display: block;
+    padding: 0 20px;
+    min-height: 100vh;
+    box-sizing: border-box;
+    overflow: visible;
+  }
+
+  .desktop-photos { display: none; }
   
-  .polaroid { width: 120px; position: fixed; }
-  .p1 { top: auto; bottom: 10px; left: 10px; transform: rotate(-10deg); }
-  .p2 { top: auto; bottom: 10px; right: 10px; transform: rotate(10deg); }
+  .mobile-photos { 
+    display: block; 
+    position: fixed;
+    top: 0; left: 0; 
+    width: 100%; height: 100%; 
+    z-index: 0;
+    pointer-events: none;
+  }
+  
+  .mobile-photos .polaroid {
+    width: 100px;
+    z-index: 1;
+    pointer-events: auto;
+  }
+
+  .m-p1 { top: 10px; left: -10px; transform: rotate(-15deg); }
+  .m-p2 { top: 20px; right: -10px; transform: rotate(10deg); }
+  
+  .m-p3 { top: 35%; left: -25px; transform: rotate(5deg); }
+  .m-p4 { top: 55%; right: -25px; transform: rotate(-8deg); }
+  
+  .m-p5 { bottom: 20px; left: -10px; transform: rotate(-5deg); }
+  .m-p6 { bottom: 20px; right: -10px; transform: rotate(12deg); }
+
+  .rsvp-card {
+    position: relative;
+    z-index: 10;
+    margin: 100px auto;
+    width: 100%;
+    max-width: 100%;
+    background: rgba(255, 255, 255, 0.96);
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    max-height: none; 
+    overflow: visible;
+  }
   
   .input-group { flex-direction: column; }
   .input-group button { width: 100%; padding: 14px; }

@@ -1,16 +1,30 @@
 <div class="main-wrapper">
   
-  <div class="polaroid p1 floating" (click)="openPhoto('assets/foto-casal-1.jpg')">
-    <img src="assets/foto-casal-1.jpg" alt="Nós dois" />
+  <div class="desktop-photos">
+    <div class="polaroid p1" (click)="openPhoto('assets/foto-casal-1.jpg')"><img src="assets/foto-casal-1.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
+    <div class="polaroid p2" (click)="openPhoto('assets/foto-casal-2.jpg')"><img src="assets/foto-casal-2.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
+    <div class="polaroid p3" (click)="openPhoto('assets/foto-casal-3.jpg')"><img src="assets/foto-casal-3.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
+    <div class="polaroid p4" (click)="openPhoto('assets/foto-casal-4.jpg')"><img src="assets/foto-casal-4.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
+    <div class="polaroid p5" (click)="openPhoto('assets/foto-casal-5.jpg')"><img src="assets/foto-casal-5.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
+    <div class="polaroid p6" (click)="openPhoto('assets/foto-casal-6.jpg')"><img src="assets/foto-casal-6.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
+    <div class="polaroid p7" (click)="openPhoto('assets/foto-casal-7.jpg')"><img src="assets/foto-casal-7.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
+    <div class="polaroid p8" (click)="openPhoto('assets/foto-casal-8.jpg')"><img src="assets/foto-casal-8.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
+    <div class="polaroid p9" (click)="openPhoto('assets/foto-casal-9.jpg')"><img src="assets/foto-casal-9.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
+    <div class="polaroid p10" (click)="openPhoto('assets/foto-casal-10.jpg')"><img src="assets/foto-casal-10.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
   </div>
-  <div class="polaroid p2 floating-delayed" (click)="openPhoto('assets/foto-casal-2.jpg')">
-    <img src="assets/foto-casal-2.jpg" alt="Love" />
+
+  <div class="mobile-photos">
+    <div class="polaroid m-p1" (click)="openPhoto('assets/foto-casal-1.jpg')"><img src="assets/foto-casal-1.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
+    <div class="polaroid m-p2" (click)="openPhoto('assets/foto-casal-2.jpg')"><img src="assets/foto-casal-2.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
+    <div class="polaroid m-p3" (click)="openPhoto('assets/foto-casal-3.jpg')"><img src="assets/foto-casal-3.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
+    <div class="polaroid m-p4" (click)="openPhoto('assets/foto-casal-4.jpg')"><img src="assets/foto-casal-4.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
+    <div class="polaroid m-p5" (click)="openPhoto('assets/foto-casal-5.jpg')"><img src="assets/foto-casal-5.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
+    <div class="polaroid m-p6" (click)="openPhoto('assets/foto-casal-6.jpg')"><img src="assets/foto-casal-6.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
   </div>
 
   <div class="lightbox-overlay fade-in" *ngIf="expandedPhoto()" (click)="closePhoto()">
     <div class="lightbox-content">
       <img [src]="expandedPhoto()" alt="Foto expandida" />
-      <span class="close-hint">Toque em qualquer lugar para fechar</span>
     </div>
   </div>
 
@@ -46,10 +60,7 @@
     </section>
 
     <section *ngIf="guestData() && !successMessage()" class="step-section fade-in">
-      
-      <button class="btn-back-text" (click)="resetSearch()">
-        ← Voltar / Trocar Código
-      </button>
+      <button class="btn-back-text" (click)="resetSearch()">← Voltar / Trocar Código</button>
 
       <div class="guest-info">
         <h2>Olá, {{ guestData()?.nomeCompleto }}!</h2>
@@ -62,17 +73,17 @@
         <div class="form-row">
           <div class="form-group">
             <label>Email</label>
-            <input type="email" formControlName="email" placeholder="seu@email.com" />
+            <input type="email" formControlName="email" placeholder="Opcional" />
           </div>
           <div class="form-group">
             <label>WhatsApp</label>
-            <input type="tel" formControlName="telefone" placeholder="(XX) 9XXXX-XXXX" />
+            <input type="tel" formControlName="telefone" placeholder="Opcional" />
           </div>
         </div>
 
         <div class="form-group">
-          <label>Observações (alergias, restrições, etc.)</label>
-          <textarea formControlName="observacoes" placeholder="Alguma restrição alimentar? Ou apenas deixe seu carinho!"></textarea>
+          <label>Mensagem aos noivos</label>
+          <textarea formControlName="observacoes" placeholder="Deixe um recado ou informe restrições alimentares..."></textarea>
         </div>
 
         <div class="actions">
@@ -90,9 +101,7 @@
       <div class="success-icon">💌</div>
       <h3>Obrigado!</h3>
       <p>{{ successMessage() }}</p>
-      <button class="btn-outline" (click)="resetSearch()">
-        Voltar ao início
-      </button>
+      <button class="btn-outline" (click)="resetSearch()">Voltar ao início</button>
     </section>
   </div>
 </div>

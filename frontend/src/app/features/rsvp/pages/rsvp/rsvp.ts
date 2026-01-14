@@ -19,7 +19,6 @@ export class Rsvp {
   isLoading = signal(false);
   errorMessage = signal('');
   successMessage = signal('');
-  
   expandedPhoto = signal<string | null>(null);
 
   lookupForm = this.fb.group({
@@ -28,7 +27,7 @@ export class Rsvp {
 
   actionForm = this.fb.group({
     email: ['', [Validators.email]],
-    telefone: ['', [Validators.required]],
+    telefone: [''], 
     observacoes: ['']
   });
 
@@ -44,6 +43,7 @@ export class Rsvp {
     this.guestData.set(null);
     this.lookupForm.reset();
     this.errorMessage.set('');
+    this.successMessage.set('');
   }
 
   onLookup() {
@@ -74,11 +74,6 @@ export class Rsvp {
   }
 
   submitRsvp(isConfirm: boolean) {
-    if (this.actionForm.invalid) {
-        this.actionForm.markAllAsTouched();
-        return;
-    }
-    
     this.isLoading.set(true);
     const codigo = this.guestData()?.codigoConvite!;
     
