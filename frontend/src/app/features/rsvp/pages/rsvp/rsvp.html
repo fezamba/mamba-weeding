@@ -1,113 +1,83 @@
-<div class="main-wrapper">
-  
-  <div class="desktop-photos">
-    <div class="polaroid p1" (click)="openPhoto('assets/foto-casal-1.jpg')"><img src="assets/foto-casal-1.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-    <div class="polaroid p2" (click)="openPhoto('assets/foto-casal-2.jpg')"><img src="assets/foto-casal-2.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-    <div class="polaroid p3" (click)="openPhoto('assets/foto-casal-3.jpg')"><img src="assets/foto-casal-3.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-    <div class="polaroid p4" (click)="openPhoto('assets/foto-casal-4.jpg')"><img src="assets/foto-casal-4.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-    <div class="polaroid p5" (click)="openPhoto('assets/foto-casal-5.jpg')"><img src="assets/foto-casal-5.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-    <div class="polaroid p6" (click)="openPhoto('assets/foto-casal-6.jpg')"><img src="assets/foto-casal-6.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-    <div class="polaroid p7" (click)="openPhoto('assets/foto-casal-7.jpg')"><img src="assets/foto-casal-7.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-    <div class="polaroid p8" (click)="openPhoto('assets/foto-casal-8.jpg')"><img src="assets/foto-casal-8.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-    <div class="polaroid p9" (click)="openPhoto('assets/foto-casal-9.jpg')"><img src="assets/foto-casal-9.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-    <div class="polaroid p10" (click)="openPhoto('assets/foto-casal-10.jpg')"><img src="assets/foto-casal-10.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-  </div>
-
-  <div class="mobile-photos">
-    <div class="polaroid m-p1"><img src="assets/foto-casal-1.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-    <div class="polaroid m-p2"><img src="assets/foto-casal-2.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-    <div class="polaroid m-p3"><img src="assets/foto-casal-3.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-    <div class="polaroid m-p4"><img src="assets/foto-casal-4.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-    <div class="polaroid m-p5"><img src="assets/foto-casal-5.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-    <div class="polaroid m-p6"><img src="assets/foto-casal-6.jpg" onerror="this.src='assets/foto-casal-1.jpg'"></div>
-  </div>
-
-  <div class="lightbox-overlay fade-in" *ngIf="expandedPhoto()" (click)="closePhoto()">
-    <div class="lightbox-content">
-      <img [src]="expandedPhoto()" alt="Foto expandida" />
-    </div>
-  </div>
-
-  <div class="rsvp-card">
+<div class="container">
+  <mat-card class="rsvp-card">
     
-    <div class="nav-header" *ngIf="guestData() && !successMessage()">
-      <button class="btn-back-icon" (click)="resetSearch()">
-        <span class="arrow">←</span> Voltar
-      </button>
-    </div>
+    <mat-progress-bar mode="indeterminate" *ngIf="isLoading()"></mat-progress-bar>
 
-    <header class="card-header">
-      <div class="icon">💍</div>
-      <h1>Mamba Wedding</h1>
-      <p class="subtitle">Confirme sua presença neste momento especial</p>
-    </header>
+    <mat-card-header>
+      <mat-card-title>Fernando e Mariana</mat-card-title>
+      <mat-card-subtitle>Confirmação de Presença</mat-card-subtitle>
+    </mat-card-header>
 
-    <section *ngIf="!guestData() && !successMessage()" class="step-section fade-in">
-      <form [formGroup]="lookupForm" (ngSubmit)="onLookup()">
-        <label for="code">Código do Convite</label>
-        <div class="input-group">
-          <input 
-            id="code" 
-            type="text" 
-            formControlName="codigoConvite" 
-            placeholder="Ex: MAMBA-2026" 
-            autocomplete="off"
-          />
-          <button type="submit" [disabled]="lookupForm.invalid || isLoading()">
-            <span *ngIf="!isLoading()">Buscar</span>
-            <span *ngIf="isLoading()" class="loader"></span>
-          </button>
-        </div>
-        <p class="hint">O código está no seu convite individual.</p>
-      </form>
+    <mat-card-content>
       
-      <div class="error-msg fade-in" *ngIf="errorMessage()">
-        {{ errorMessage() }}
-      </div>
-    </section>
+      <div *ngIf="step() === 'search'" class="content-step fade-in">
+        <p>Digite o código localizado no seu convite individual.</p>
+        
+        <form [formGroup]="lookupForm" (ngSubmit)="onLookup()">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Código do Convite</mat-label>
+            <input matInput formControlName="codigoConvite" placeholder="Ex: MAMBA2026" style="text-transform: uppercase;">
+            <mat-icon matSuffix>confirmation_number</mat-icon>
+            <mat-error *ngIf="lookupForm.get('codigoConvite')?.hasError('required')">
+              O código é obrigatório
+            </mat-error>
+          </mat-form-field>
 
-    <section *ngIf="guestData() && !successMessage()" class="step-section fade-in">
-      
-      <div class="guest-info">
-        <h2>Olá, {{ guestData()?.nomeCompleto }}!</h2>
-        <span class="status-badge" [class]="guestData()?.statusConvite">
-          {{ guestData()?.statusConvite }}
-        </span>
+          <div class="actions-row">
+            <button mat-flat-button color="primary" type="submit" [disabled]="lookupForm.invalid || isLoading()">
+              BUSCAR CONVITE
+            </button>
+          </div>
+        </form>
       </div>
 
-      <form [formGroup]="actionForm" class="details-form">
-        <div class="form-row">
-          <div class="form-group">
-            <label>Email</label>
-            <input type="email" formControlName="email" placeholder="Opcional" />
-          </div>
-          <div class="form-group">
-            <label>WhatsApp</label>
-            <input type="tel" formControlName="telefone" placeholder="Opcional" />
-          </div>
+      <div *ngIf="step() === 'form' && guestData()" class="content-step fade-in">
+        <div class="guest-summary">
+          <h3>Olá, {{ guestData()?.nomeCompleto }}</h3>
+          <p>Status atual: <strong>{{ guestData()?.statusConvite || 'Pendente' }}</strong></p>
         </div>
 
-        <div class="form-group">
-          <label>Mensagem aos noivos</label>
-          <textarea formControlName="observacoes" placeholder="Deixe um recado ou informe restrições alimentares..."></textarea>
-        </div>
+        <form [formGroup]="actionForm" class="form-grid">
+          <mat-form-field appearance="outline">
+            <mat-label>Email (Opcional)</mat-label>
+            <input matInput type="email" formControlName="email" placeholder="exemplo@email.com">
+            <mat-icon matSuffix>email</mat-icon>
+          </mat-form-field>
 
-        <div class="actions">
-          <button type="button" (click)="submitRsvp(true)" class="btn-confirm" [disabled]="isLoading()">
-            Confirmar Presença ✨
+          <mat-form-field appearance="outline">
+            <mat-label>WhatsApp (Opcional)</mat-label>
+            <input matInput type="tel" formControlName="telefone" placeholder="(00) 00000-0000">
+            <mat-icon matSuffix>phone</mat-icon>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Mensagem aos noivos (opcional)</mat-label>
+            <textarea matInput formControlName="observacoes" rows="3" placeholder="Restrições alimentares ou recados..."></textarea>
+          </mat-form-field>
+        </form>
+
+        <div class="actions-buttons">
+          <button mat-flat-button color="primary" (click)="submitRsvp(true)" [disabled]="isLoading()">
+            CONFIRMAR PRESENÇA
           </button>
-          <button type="button" (click)="submitRsvp(false)" class="btn-decline" [disabled]="isLoading()">
-            Não poderei ir 💔
+          <button mat-stroked-button color="warn" (click)="submitRsvp(false)" [disabled]="isLoading()">
+            NÃO PODEREI IR
           </button>
+          <button mat-button (click)="resetSearch()">Voltar</button>
         </div>
-      </form>
-    </section>
+      </div>
 
-    <section *ngIf="successMessage()" class="success-section fade-in">
-      <div class="success-icon">💌</div>
-      <h3>Obrigado!</h3>
-      <p>{{ successMessage() }}</p>
-      <button class="btn-outline" (click)="resetSearch()">Voltar ao início</button>
-    </section>
-  </div>
+      <div *ngIf="step() === 'success'" class="content-step fade-in">
+        <div class="success-message">
+          <mat-icon class="large-icon">check_circle</mat-icon>
+          <h3>Obrigado!</h3>
+          <p>Sua resposta foi registrada com sucesso.</p>
+        </div>
+        <div class="actions-row">
+          <button mat-stroked-button (click)="resetSearch()">Voltar ao início</button>
+        </div>
+      </div>
+
+    </mat-card-content>
+  </mat-card>
 </div>
