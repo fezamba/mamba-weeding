@@ -38,21 +38,24 @@
         </div>
 
         <form [formGroup]="actionForm" class="form-grid">
+          <!-- FIXME: Colocar validação no campo de telefone -->
+          <mat-form-field appearance="outline">
+            <mat-label>Telefone</mat-label>
+            <input matInput type="tel" formControlName="telefone" placeholder="(00) 00000-0000">
+            <mat-icon matSuffix>phone</mat-icon>
+              <mat-error *ngIf="actionForm.get('telefone')?.hasError('required')">
+                O telefone é obrigatório
+              </mat-error>
+          </mat-form-field>
           <mat-form-field appearance="outline">
             <mat-label>Email (Opcional)</mat-label>
             <input matInput type="email" formControlName="email" placeholder="exemplo@email.com">
             <mat-icon matSuffix>email</mat-icon>
           </mat-form-field>
 
-          <mat-form-field appearance="outline">
-            <mat-label>WhatsApp (Opcional)</mat-label>
-            <input matInput type="tel" formControlName="telefone" placeholder="(00) 00000-0000">
-            <mat-icon matSuffix>phone</mat-icon>
-          </mat-form-field>
-
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Mensagem aos noivos (opcional)</mat-label>
-            <textarea matInput formControlName="observacoes" rows="3" placeholder="Restrições alimentares ou recados..."></textarea>
+            <textarea matInput formControlName="observacoes" rows="4" placeholder="Restrições alimentares ou recados..."></textarea>
           </mat-form-field>
         </form>
 

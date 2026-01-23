@@ -74,6 +74,6 @@ mamba-wedding/
 * statusConvite (PENDENTE, CONFIRMADO, RECUSADO)
 * rsvpEm
 * lado (noivo, noiva)
+* telefone
 * email (opcional)
-* telefone (opcional)
 * observacoes (opcional)
