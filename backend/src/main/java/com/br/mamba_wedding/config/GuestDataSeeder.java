@@ -35,12 +35,12 @@ public class GuestDataSeeder implements CommandLineRunner {
                 .lado("NOIVO")
                 .build();
         
-            Guest g3 = Guest.builder()
-                .nomeCompleto("Eliane Azambuja")
-                .codigoConvite("ELIA123")
-                .statusConvite(GuestStatus.PENDENTE)
-                .lado("NOIVO")
-                .build();
+        Guest g3 = Guest.builder()
+            .nomeCompleto("Eliane Azambuja")
+            .codigoConvite("ELIA123")
+            .statusConvite(GuestStatus.PENDENTE)
+            .lado("NOIVO")
+            .build();
 
         guestRepository.save(g1);
         guestRepository.save(g2);
