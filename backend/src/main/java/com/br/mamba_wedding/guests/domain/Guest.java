@@ -32,13 +32,14 @@ public class Guest {
 
     private LocalDateTime rsvpEm;
 
-    @Column(length = 32)
-    private String lado;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private GuestSide lado;
 
-    @Column(length = 120)
+    @Column(nullable = false, length = 120)
     private String email;
 
-    @Column(length = 30)
+    @Column(nullable = false, length = 30)
     private String telefone;
 
     @Column(length = 255)

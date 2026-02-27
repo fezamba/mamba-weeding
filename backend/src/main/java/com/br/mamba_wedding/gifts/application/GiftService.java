@@ -37,4 +37,19 @@ public class GiftService {
         gift.setReservadoEm(LocalDateTime.now());
         giftRepository.save(gift);
     }
+
+    @Transactional
+    public void cancelarReserva(Long giftId){
+        Gift gift = giftRepository.findById(giftId)
+                .orElseThrow(() -> new NotFoundException("Presente não encontrado"));
+
+        if (gift.getStatus() != GiftStatus.RESERVADO) {
+            throw new IllegalStateException("Apenas presentes reservados podem ter a reserva cancelada.");
+        }
+
+        gift.setStatus(GiftStatus.DISPONIVEL);
+        gift.setReservadoPor(null);
+        gift.setReservadoEm(null);
+        giftRepository.save(gift);
+    }
 }

@@ -1,6 +1,7 @@
 package com.br.mamba_wedding.config;
 
 import com.br.mamba_wedding.guests.domain.Guest;
+import com.br.mamba_wedding.guests.domain.GuestSide;
 import com.br.mamba_wedding.guests.domain.GuestStatus;
 import com.br.mamba_wedding.guests.infrastructure.GuestRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,21 +26,21 @@ public class GuestDataSeeder implements CommandLineRunner {
                 .nomeCompleto("Fabiana Maia")
                 .codigoConvite("FABI123")
                 .statusConvite(GuestStatus.PENDENTE)
-                .lado("NOIVA")
+                .lado(GuestSide.NOIVA)
                 .build();
 
         Guest g2 = Guest.builder()
                 .nomeCompleto("Cecile Azambuja")
                 .codigoConvite("CECI123")
                 .statusConvite(GuestStatus.PENDENTE)
-                .lado("NOIVO")
+                .lado(GuestSide.NOIVO)
                 .build();
         
         Guest g3 = Guest.builder()
             .nomeCompleto("Eliane Azambuja")
             .codigoConvite("ELIA123")
             .statusConvite(GuestStatus.PENDENTE)
-            .lado("NOIVO")
+            .lado(GuestSide.NOIVO)
             .build();
 
         guestRepository.save(g1);

@@ -14,7 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/gifts")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "*") //FIXME: Substituir pela URL do front em PRD. 
 public class GiftController {
 
     private final GiftService giftService;
@@ -33,4 +33,12 @@ public class GiftController {
         giftService.reservar(id, request.reservadoPor());
         return ResponseEntity.noContent().build();
     }
+
+    @DeleteMapping("/{id}/reserve")
+    public ResponseEntity<Void> cancelReserve(@PathVariable Long id){
+        giftService.cancelarReserva(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    //TODO: Endpoint de Comprar
 }

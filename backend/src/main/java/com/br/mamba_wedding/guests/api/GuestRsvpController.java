@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/rsvp")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "*") //FIXME: Substituir pela URL do front em PRD. 
 public class GuestRsvpController {
 
     private final GuestRsvpService guestRsvpService;
