@@ -50,4 +50,6 @@ public class Gift {
 	private LocalDateTime reservadoEm;
 
 	private LocalDateTime compradoEm;
+
+	private LocalDateTime reservadoAte;
 }

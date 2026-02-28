@@ -1,8 +1,11 @@
 package com.br.mamba_wedding.gifts.api;
 
+import com.br.mamba_wedding.gifts.api.dto.GiftDetail;
+import com.br.mamba_wedding.gifts.api.dto.GiftList;
 import com.br.mamba_wedding.gifts.api.dto.GiftReserveRequest;
-import com.br.mamba_wedding.gifts.api.dto.GiftResponse;
 import com.br.mamba_wedding.gifts.application.GiftService;
+import com.br.mamba_wedding.gifts.domain.Gift;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
 import java.util.List;
+
 
 @RestController
 @RequestMapping("/api/gifts")
@@ -20,12 +24,18 @@ public class GiftController {
     private final GiftService giftService;
 
     @GetMapping
-    public ResponseEntity<List<GiftResponse>> list() {
-        List<GiftResponse> response = giftService.listAll()
+    public ResponseEntity<List<GiftList>> list() {
+        List<GiftList> response = giftService.listAll()
                 .stream()
-                .map(GiftResponse::from)
+                .map(GiftList::from)
                 .toList();
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<GiftDetail> detailGift(@PathVariable Long id){
+        Gift response = giftService.buscarPorId(id);
+        return ResponseEntity.ok(GiftDetail.from(response));
     }
 
     @PostMapping("/{id}/reserve")

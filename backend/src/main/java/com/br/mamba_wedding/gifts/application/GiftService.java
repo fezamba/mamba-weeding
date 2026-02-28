@@ -20,13 +20,25 @@ public class GiftService {
     }
 
     public List<Gift> listAll() {
-        return giftRepository.findAll();
+        List<Gift> gifts = giftRepository.findAll();
+
+        gifts.forEach(this::expirarSeNecessario);
+
+        return gifts;
+    }
+
+    public Gift buscarPorId(Long giftId){
+        Gift gift = giftRepository.findById(giftId)
+            .orElseThrow(() -> new NotFoundException("Presente não encontrado"));;
+        return gift;
     }
 
     @Transactional
     public void reservar(Long giftId, String reservadoPor){
         Gift gift = giftRepository.findById(giftId)
                 .orElseThrow(() -> new NotFoundException("Presente não encontrado"));
+
+        expirarSeNecessario(gift);
 
         if (gift.getStatus() != GiftStatus.DISPONIVEL) {
             throw new IllegalStateException("Presente já reservado/comprado");
@@ -42,6 +54,8 @@ public class GiftService {
     public void cancelarReserva(Long giftId){
         Gift gift = giftRepository.findById(giftId)
                 .orElseThrow(() -> new NotFoundException("Presente não encontrado"));
+        
+        expirarSeNecessario(gift);
 
         if (gift.getStatus() != GiftStatus.RESERVADO) {
             throw new IllegalStateException("Apenas presentes reservados podem ter a reserva cancelada.");
@@ -59,6 +73,8 @@ public class GiftService {
         Gift gift = giftRepository.findById(giftId)
                 .orElseThrow(() -> new NotFoundException("Presente não encontrado"));
 
+        expirarSeNecessario(gift);
+
         if (gift.getStatus() != GiftStatus.RESERVADO) {
             throw new IllegalStateException("Presente já reservado/comprado");
         }
@@ -66,5 +82,16 @@ public class GiftService {
         gift.setStatus(GiftStatus.COMPRADO);
         gift.setCompradoEm(LocalDateTime.now());
         giftRepository.save(gift);
+    }
+
+    private void expirarSeNecessario(Gift gift) {
+        if (gift.getStatus() == GiftStatus.RESERVADO
+            && gift.getReservadoAte() != null
+            && gift.getReservadoAte().isBefore(LocalDateTime.now())) {
+            gift.setStatus(GiftStatus.DISPONIVEL);
+            gift.setReservadoPor(null);
+            gift.setReservadoEm(null);
+            gift.setReservadoAte(null);
+        }
     }
 }
