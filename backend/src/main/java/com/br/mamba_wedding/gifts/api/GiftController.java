@@ -40,5 +40,9 @@ public class GiftController {
         return ResponseEntity.noContent().build();
     }
 
-    //TODO: Endpoint de Comprar
+    @PostMapping("/{id}/buy")
+    public ResponseEntity<Void> buyGift(@PathVariable Long id){
+        giftService.comprar(id);
+        return ResponseEntity.noContent().build();
+    }
 }

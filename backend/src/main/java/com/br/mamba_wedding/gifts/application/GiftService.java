@@ -52,4 +52,18 @@ public class GiftService {
         gift.setReservadoEm(null);
         giftRepository.save(gift);
     }
+
+    @Transactional
+    public void comprar(Long giftId){
+        Gift gift = giftRepository.findById(giftId)
+                .orElseThrow(() -> new NotFoundException("Presente não encontrado"));
+
+        if (gift.getStatus() != GiftStatus.RESERVADO) {
+            throw new IllegalStateException("Presente já reservado/comprado");
+        }
+
+        gift.setStatus(GiftStatus.COMPRADO);
+        gift.setCompradoEm(LocalDateTime.now());
+        giftRepository.save(gift);
+    }
 }

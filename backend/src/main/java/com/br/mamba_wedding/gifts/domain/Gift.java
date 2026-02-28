@@ -48,4 +48,6 @@ public class Gift {
 	private String reservadoPor;
 
 	private LocalDateTime reservadoEm;
+
+	private LocalDateTime compradoEm;
 }
