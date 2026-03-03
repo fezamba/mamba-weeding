@@ -4,7 +4,9 @@ import com.br.mamba_wedding.guests.domain.Guest;
 import com.br.mamba_wedding.guests.domain.GuestSide;
 import com.br.mamba_wedding.guests.domain.GuestStatus;
 import com.br.mamba_wedding.guests.infrastructure.GuestRepository;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -18,24 +20,24 @@ public class GuestDataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (guestRepository.count() > 0) {
+        if (guestRepository.count() != 0) {
             return;
         }
 
         Guest g1 = Guest.builder()
-                .nomeCompleto("Fabiana Maia")
-                .codigoConvite("FABI123")
-                .statusConvite(GuestStatus.PENDENTE)
-                .lado(GuestSide.NOIVA)
-                .build();
+            .nomeCompleto("Fabiana Maia")
+            .codigoConvite("FABI123")
+            .statusConvite(GuestStatus.PENDENTE)
+            .lado(GuestSide.NOIVA)
+            .build();
 
         Guest g2 = Guest.builder()
-                .nomeCompleto("Cecile Azambuja")
-                .codigoConvite("CECI123")
-                .statusConvite(GuestStatus.PENDENTE)
-                .lado(GuestSide.NOIVO)
-                .build();
-        
+            .nomeCompleto("Cecile Azambuja")
+            .codigoConvite("CECI123")
+            .statusConvite(GuestStatus.PENDENTE)
+            .lado(GuestSide.NOIVO)
+            .build();
+
         Guest g3 = Guest.builder()
             .nomeCompleto("Eliane Azambuja")
             .codigoConvite("ELIA123")
@@ -47,6 +49,7 @@ public class GuestDataSeeder implements CommandLineRunner {
         guestRepository.save(g2);
         guestRepository.save(g3);
 
-        System.out.println(">>> Convidados de teste inseridos com sucesso");
+        System.out.println(">>> Convidados teste inseridos com sucesso");
+
     }
 }
