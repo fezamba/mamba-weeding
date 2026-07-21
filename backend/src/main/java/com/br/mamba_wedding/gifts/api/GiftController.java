@@ -41,19 +41,19 @@ public class GiftController {
 
     @PostMapping("/{id}/reserve")
     public ResponseEntity<Void> reserve(@PathVariable Long id, @AuthenticationPrincipal Guest loggedGuest, @Valid @RequestBody ReserveRequest request) {
-        giftService.reserve(id, loggedGuest.getFullName(), request.quotas());
+        giftService.reserve(id, loggedGuest.getId(), request.quotas());
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}/reserve")
     public ResponseEntity<Void> cancelReserve(@PathVariable Long id, @AuthenticationPrincipal Guest loggedGuest){
-        giftService.cancelReserve(id, loggedGuest.getFullName());
+        giftService.cancelReserve(id, loggedGuest.getId());
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/buy")
     public ResponseEntity<Void> buyGift(@PathVariable Long id, @AuthenticationPrincipal Guest loggedGuest){
-        giftService.buy(id, loggedGuest.getFullName());
+        giftService.buy(id, loggedGuest.getId());
         return ResponseEntity.noContent().build();
     }
 }

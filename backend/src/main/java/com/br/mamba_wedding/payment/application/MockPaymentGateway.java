@@ -16,7 +16,7 @@ public class MockPaymentGateway implements PaymentGateway {
     @Override
     public void processPayment(GiftTransaction transaction, BigDecimal valueToPay) {
         log.info("Inicializando Mock");
-        log.info("Convidado: {}", transaction.getGuestName());
+        log.info("Convidado: {}", transaction.getGuest().getFullName());
         log.info("Presente: {} | Cotas: {} | Valor total: R$ {}", 
             transaction.getGift().getName(), 
             transaction.getNumberQuotas(), 

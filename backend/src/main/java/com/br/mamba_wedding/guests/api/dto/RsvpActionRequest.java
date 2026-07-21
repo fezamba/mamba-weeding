@@ -6,10 +6,6 @@ import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Email;
 
 public record RsvpActionRequest(
-    @NotBlank()
-    @Size(min = 3, max = 32)
-    String rsvpCode,
-
     @NotBlank(message = "Telefone é obrigatório")
     @Pattern(regexp = "^\\d{11}$", message = "Telefone inválido")
     String phone,

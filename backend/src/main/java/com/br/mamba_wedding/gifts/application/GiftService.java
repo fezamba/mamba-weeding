@@ -16,6 +16,9 @@ import com.br.mamba_wedding.gifts.domain.TransactionStatus;
 import com.br.mamba_wedding.gifts.infrastructure.GiftRepository;
 import com.br.mamba_wedding.gifts.infrastructure.GiftTransactionRepository;
 import com.br.mamba_wedding.payment.application.PaymentGateway;
+import com.br.mamba_wedding.guests.domain.Guest;
+import com.br.mamba_wedding.guests.domain.GuestNotFoundException;
+import com.br.mamba_wedding.guests.infrastructure.GuestRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -27,13 +30,15 @@ public class GiftService {
     private final GiftRepository giftRepository;
     private final GiftTransactionRepository giftTransactionRepository;
     private final PaymentGateway paymentGateway;
+    private final GuestRepository guestRepository;
 
     private static final Logger log = LoggerFactory.getLogger(GiftService.class);
 
-    public GiftService(GiftRepository giftRepository, GiftTransactionRepository giftTransactionRepository, PaymentGateway paymentGateway) {
+    public GiftService(GiftRepository giftRepository, GiftTransactionRepository giftTransactionRepository, PaymentGateway paymentGateway, GuestRepository guestRepository) {
         this.giftRepository = giftRepository;
         this.giftTransactionRepository = giftTransactionRepository;
         this.paymentGateway = paymentGateway;
+        this.guestRepository = guestRepository;
     }
 
     public List<Gift> listAll() {
@@ -49,9 +54,18 @@ public class GiftService {
     }
 
     @Transactional
-    public void reserve(Long giftId, String reservedBy, int quotas){
-        Gift gift = giftRepository.findById(giftId)
+    public void reserve(Long giftId, Long guestId, int quotas){
+        Gift gift = giftRepository.findByIdForUpdate(giftId)
                 .orElseThrow(() -> new NotFoundException("Presente não encontrado"));
+        Guest guest = guestRepository.findById(guestId)
+                .orElseThrow(GuestNotFoundException::new);
+
+        boolean alreadyReserved = gift.getTransactions().stream()
+                .anyMatch(transaction -> transaction.getGuest().getId().equals(guestId)
+                        && transaction.getStatus() == TransactionStatus.RESERVED);
+        if (alreadyReserved) {
+            throw new IllegalStateException("Você já possui uma reserva ativa deste presente.");
+        }
 
         if (quotas > gift.getAvailableQuotas()){
             throw new IllegalStateException(
@@ -61,7 +75,7 @@ public class GiftService {
 
         GiftTransaction transaction = GiftTransaction.builder()
             .gift(gift)
-            .guestName(reservedBy)
+            .guest(guest)
             .numberQuotas(quotas)
             .status(TransactionStatus.RESERVED)
             .reservedAt(LocalDateTime.now())
@@ -73,12 +87,12 @@ public class GiftService {
     }
 
     @Transactional
-    public void cancelReserve(Long giftId, String guestName){
-        Gift gift = giftRepository.findById(giftId)
+    public void cancelReserve(Long giftId, Long guestId){
+        Gift gift = giftRepository.findByIdForUpdate(giftId)
                 .orElseThrow(() -> new NotFoundException("Presente não encontrado"));
         
         GiftTransaction transaction = gift.getTransactions().stream()
-            .filter(t -> t.getGuestName().equals(guestName) && t.getStatus() == TransactionStatus.RESERVED)
+            .filter(t -> t.getGuest().getId().equals(guestId) && t.getStatus() == TransactionStatus.RESERVED)
             .findFirst()
             .orElseThrow(() -> new IllegalStateException("Você não possui uma reserva ativa deste presente para cancelar."));
 
@@ -87,14 +101,18 @@ public class GiftService {
         }
 
     @Transactional
-    public void buy(Long giftId, String guestName){
-        Gift gift = giftRepository.findById(giftId)
+    public void buy(Long giftId, Long guestId){
+        Gift gift = giftRepository.findByIdForUpdate(giftId)
                 .orElseThrow(() -> new NotFoundException("Presente não encontrado"));
 
         GiftTransaction transaction = gift.getTransactions().stream()
-            .filter(t -> t.getGuestName().equals(guestName) && t.getStatus() == TransactionStatus.RESERVED)
+            .filter(t -> t.getGuest().getId().equals(guestId) && t.getStatus() == TransactionStatus.RESERVED)
             .findFirst()
             .orElseThrow(() -> new IllegalStateException("Nenhuma reserva encontrada. Por favor, reserve as cotas antes de pagar."));
+
+        if (transaction.getReservedUntil() == null || !transaction.getReservedUntil().isAfter(LocalDateTime.now())) {
+            throw new IllegalStateException("Sua reserva expirou. Faça uma nova reserva antes de pagar.");
+        }
 
         BigDecimal quotaValue = gift.getValue().divide(new BigDecimal(gift.getTotalQuotas()), 2, RoundingMode.HALF_UP);
         BigDecimal valueToPay = quotaValue.multiply(new BigDecimal(transaction.getNumberQuotas()));

@@ -41,6 +41,6 @@ public class AuthController {
 
         String token = tokenService.generateToken(guest.getRsvpCode(), "ROLE_GUEST");
 
-        return ResponseEntity.ok(new LoginResponse(token));
+        return ResponseEntity.ok(new LoginResponse(token, guest.getFullName(), guest.getRsvpStatus()));
     }
 }

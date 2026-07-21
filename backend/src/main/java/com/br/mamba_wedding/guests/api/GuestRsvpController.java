@@ -1,19 +1,16 @@
 package com.br.mamba_wedding.guests.api;
 
 
-import com.br.mamba_wedding.config.security.PublicEndpointRateLimiter;
 import com.br.mamba_wedding.guests.api.dto.RsvpActionRequest;
-import com.br.mamba_wedding.guests.api.dto.RsvpLookupRequest;
 import com.br.mamba_wedding.guests.api.dto.RsvpResponse;
 import com.br.mamba_wedding.guests.application.GuestRsvpService;
-import jakarta.servlet.http.HttpServletRequest;
+import com.br.mamba_wedding.guests.domain.Guest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.time.Duration;
 
 @RestController
 @RequestMapping("/api/rsvp")
@@ -22,19 +19,16 @@ import java.time.Duration;
 public class GuestRsvpController {
 
     private final GuestRsvpService guestRsvpService;
-    private final PublicEndpointRateLimiter rateLimiter;
 
-    @PostMapping("/lookup")
-    public ResponseEntity<RsvpResponse> lookup(@Valid @RequestBody RsvpLookupRequest request, HttpServletRequest httpServletRequest) {
-        rateLimiter.assertAllowed(httpServletRequest, "rsvp-lookup", request.rsvpCode(), 20, Duration.ofMinutes(1));
-        return ResponseEntity.ok(guestRsvpService.lookup(request.rsvpCode()));
+    @GetMapping("/me")
+    public ResponseEntity<RsvpResponse> me(@AuthenticationPrincipal Guest loggedGuest) {
+        return ResponseEntity.ok(guestRsvpService.findCurrent(loggedGuest.getId()));
     }
 
     @PostMapping("/confirm")
-    public ResponseEntity<Void> confirm(@Valid @RequestBody RsvpActionRequest request, HttpServletRequest httpServletRequest) {
-        rateLimiter.assertAllowed(httpServletRequest, "rsvp-confirm", request.rsvpCode(), 10, Duration.ofMinutes(1));
+    public ResponseEntity<Void> confirm(@AuthenticationPrincipal Guest loggedGuest, @Valid @RequestBody RsvpActionRequest request) {
         guestRsvpService.confirm(
-                request.rsvpCode(),
+                loggedGuest.getId(),
                 request.email(),
                 request.phone(),
                 request.notes()
@@ -43,10 +37,9 @@ public class GuestRsvpController {
     }
 
     @PostMapping("/decline")
-    public ResponseEntity<Void> decline(@Valid @RequestBody RsvpActionRequest request, HttpServletRequest httpServletRequest) {
-        rateLimiter.assertAllowed(httpServletRequest, "rsvp-decline", request.rsvpCode(), 10, Duration.ofMinutes(1));
+    public ResponseEntity<Void> decline(@AuthenticationPrincipal Guest loggedGuest, @Valid @RequestBody RsvpActionRequest request) {
         guestRsvpService.decline(
-                request.rsvpCode(),
+                loggedGuest.getId(),
                 request.email(),
                 request.phone(),
                 request.notes()

@@ -7,6 +7,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 
 import com.br.mamba_wedding.config.security.SecurityFilter;
 
@@ -27,9 +28,12 @@ public class SecurityConfig {
 
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
+            .exceptionHandling(exceptions -> exceptions
+                .authenticationEntryPoint((request, response, exception) ->
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED)))
+
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login").permitAll()
-                .requestMatchers("/api/rsvp/lookup").permitAll()
                 .requestMatchers("/api/admin/auth/google").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/messages").permitAll()
 
@@ -49,4 +53,3 @@ public class SecurityConfig {
         return http.build();
     }
 }
-

@@ -50,6 +50,13 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                new ErrorResponse(Instant.now(), 400, "Bad Request", ex.getMessage(), request.getRequestURI())
+        );
+    }
+
     @ExceptionHandler({OptimisticLockingFailureException.class, ObjectOptimisticLockingFailureException.class})
     public ResponseEntity<ErrorResponse> handleOptimisticLock(Exception ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(
@@ -89,6 +96,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleTooManyRequests(TooManyRequestsException ex, HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(
                 new ErrorResponse(Instant.now(), 429, "Too Many Requests", ex.getMessage(), request.getRequestURI())
+        );
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                new ErrorResponse(Instant.now(), 401, "Unauthorized", ex.getMessage(), request.getRequestURI())
         );
     }
 

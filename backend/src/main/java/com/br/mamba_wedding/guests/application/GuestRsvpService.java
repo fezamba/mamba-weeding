@@ -11,22 +11,25 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.text.Normalizer;
 
 @Service
 @RequiredArgsConstructor
 public class GuestRsvpService {
 
     private final GuestRepository guestRepository;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final int MAX_RSVP_GENERATION_ATTEMPTS = 20;
 
     @Transactional(readOnly = true)
-    public RsvpResponse lookup(String rsvpCode) {
-        Guest guest = guestRepository.findByRsvpCode(rsvpCode)
+    public RsvpResponse findCurrent(Long guestId) {
+        Guest guest = guestRepository.findById(guestId)
                 .orElseThrow(GuestNotFoundException::new);
 
         return new RsvpResponse(
                 guest.getFullName(),
-                guest.getRsvpCode(),
                 guest.getRsvpStatus(),
                 guest.getEmail(),
                 guest.getPhone(),
@@ -35,31 +38,31 @@ public class GuestRsvpService {
     }
 
     @Transactional
-    public void confirm(String rsvpCode, String email, String phone, String notes) {
-        Guest guest = guestRepository.findByRsvpCode(rsvpCode)
+    public void confirm(Long guestId, String email, String phone, String notes) {
+        Guest guest = guestRepository.findById(guestId)
                 .orElseThrow(GuestNotFoundException::new);
 
         guest.setRsvpStatus(GuestStatus.CONFIRMED);
         guest.setRsvpBy(LocalDateTime.now());
         
-        guest.setEmail(email != null && email.trim().isEmpty() ? null : email);
-        guest.setPhone(phone != null && phone.trim().isEmpty() ? null : phone);
-        guest.setNotes(notes != null && notes.trim().isEmpty() ? null : notes);
+        guest.setEmail(normalizeRequired(email, guest.getEmail()));
+        guest.setPhone(normalizeRequired(phone, guest.getPhone()));
+        guest.setNotes(normalizeOptional(notes));
 
         guestRepository.save(guest);
     }
 
     @Transactional
-    public void decline(String rsvpCode, String email, String phone, String notes) {
-        Guest guest = guestRepository.findByRsvpCode(rsvpCode)
+    public void decline(Long guestId, String email, String phone, String notes) {
+        Guest guest = guestRepository.findById(guestId)
                 .orElseThrow(GuestNotFoundException::new);
 
         guest.setRsvpStatus(GuestStatus.REJECTED);
         guest.setRsvpBy(LocalDateTime.now());
 
-        guest.setEmail(email != null && email.trim().isEmpty() ? null : email);
-        guest.setPhone(phone != null && phone.trim().isEmpty() ? null : phone);
-        guest.setNotes(notes != null && notes.trim().isEmpty() ? null : notes);
+        guest.setEmail(normalizeRequired(email, guest.getEmail()));
+        guest.setPhone(normalizeRequired(phone, guest.getPhone()));
+        guest.setNotes(normalizeOptional(notes));
 
         guestRepository.save(guest);
     }
@@ -67,7 +70,7 @@ public class GuestRsvpService {
     @Transactional
     public GuestCreated register(GuestCreate guestCreate) {
 
-        String rsvpCode = rsvpCodeBuilder(guestCreate.fullName());
+        String rsvpCode = generateUniqueRsvpCode(guestCreate.fullName());
         Guest guest = Guest.builder()
             .fullName(guestCreate.fullName())
             .rsvpCode(rsvpCode)
@@ -92,10 +95,36 @@ public class GuestRsvpService {
     }
 
     public String rsvpCodeBuilder(String name){
-
-        String initials = name.trim().substring(0, 3).toUpperCase();
-        String random4Digit = String.valueOf((int)(Math.random() * (9999 - 1000 + 1) + 1000));
+        String normalized = Normalizer.normalize(name == null ? "" : name, Normalizer.Form.NFD);
+        String cleaned = normalized.replaceAll("\\p{M}", "").replaceAll("[^A-Za-z]", "").toUpperCase();
+        String initials = (cleaned + "XXX").substring(0, 3);
+        String random4Digit = String.valueOf(1000 + SECURE_RANDOM.nextInt(9000));
 
         return initials + random4Digit;
+    }
+
+    private String generateUniqueRsvpCode(String name) {
+        for (int attempt = 0; attempt < MAX_RSVP_GENERATION_ATTEMPTS; attempt++) {
+            String code = rsvpCodeBuilder(name);
+            if (!guestRepository.existsByRsvpCode(code)) {
+                return code;
+            }
+        }
+
+        throw new IllegalStateException("Não foi possível gerar um código RSVP único.");
+    }
+
+    private String normalizeRequired(String value, String fallback) {
+        if (value == null || value.trim().isEmpty()) {
+            return fallback;
+        }
+        return value.trim();
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return value.trim();
     }
 }
