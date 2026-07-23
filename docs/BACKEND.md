@@ -32,6 +32,7 @@ O Mamba Wedding é uma aplicação para gerenciamento de casamento. Este documen
 - Bean Validation
 - PostgreSQL 16
 - MongoDB 7
+- Flyway
 - JWT por meio de `java-jwt`
 - Google ID Token para autenticação administrativa
 - Lombok
@@ -78,6 +79,16 @@ backend/src/main/java/com/br/mamba_wedding/
 │   └── infrastructure/      repositório MongoDB
 └── payment/
     └── application/         abstração e gateway simulado
+```
+
+Recursos e configurações:
+
+```text
+backend/src/main/resources/
+├── db/migration/            migrações versionadas do PostgreSQL
+├── application.yml          propriedades comuns
+├── application-dsv.yml      desenvolvimento local
+└── application-prod.yml     produção
 ```
 
 Fluxo de dependências:
@@ -139,6 +150,29 @@ Campos principais:
 - `purchasedAt`.
 
 Reservas são associadas ao ID do convidado, e não ao nome. Isso impede colisões entre convidados homônimos e permite validar a propriedade da reserva.
+
+### Migrações com Flyway
+
+O Flyway é a autoridade responsável pela estrutura do PostgreSQL. O Hibernate usa `ddl-auto: validate`: ele confere se as entidades correspondem ao banco, mas não cria nem altera tabelas.
+
+As migrações ficam em `backend/src/main/resources/db/migration` e seguem o formato:
+
+```text
+V<versão>__<descrição>.sql
+```
+
+Migrações existentes:
+
+- `V1__create_initial_schema.sql`: cria convidados, presentes, transações, constraints e índices;
+- `V2__link_gift_transactions_to_guests.sql`: vincula transações ao `guest_id`.
+
+O perfil `dsv` usa `baseline-version: 0` e `baseline-on-migrate: true`. Assim, um schema local criado anteriormente pelo Hibernate recebe o histórico do Flyway e executa as migrações versionadas. Em produção, o baseline automático fica desativado e só pode ser liberado conscientemente com `FLYWAY_BASELINE_ON_MIGRATE=true` durante uma adoção controlada.
+
+O comando destrutivo `flyway clean` permanece desativado em todos os perfis.
+
+A migração V2 associa registros antigos pelo nome completo. Ela interrompe a inicialização quando encontra convidados homônimos ou uma transação sem convidado correspondente. Essa interrupção protege os dados contra associações silenciosamente incorretas.
+
+Depois que uma migração for aplicada, seu conteúdo não deve ser editado. Toda alteração posterior de schema deve ser criada em um novo arquivo versionado.
 
 ### MongoDB
 
@@ -457,24 +491,64 @@ Para múltiplas instâncias, recomenda-se Redis ou controle equivalente no gatew
 
 ## 11. Configuração local
 
+### Perfis
+
+Quando nenhum perfil é informado, o backend usa `dsv` como padrão para facilitar a execução local. Em outros ambientes, `SPRING_PROFILES_ACTIVE` deve selecionar o perfil explicitamente:
+
+| Perfil | Finalidade |
+|---|---|
+| `dsv` | desenvolvimento local, bancos do Docker Compose, SQL detalhado e Swagger ativo |
+| `test` | testes automatizados, com persistência substituída por mocks no teste de contexto |
+| `prod` | conexões externas, logs reduzidos, CORS obrigatório e Swagger desativado por padrão |
+
+Propriedades comuns e o perfil padrão ficam em `application.yml`. Diferenças de ambiente ficam exclusivamente nos arquivos de perfil. O valor `SPRING_PROFILES_ACTIVE=dsv` no `.env` documenta a intenção local, mas a inicialização não depende dele.
+
 ### Variáveis de ambiente
 
-Crie `backend/.env`. O arquivo é ignorado pelo Git e seus valores não devem ser documentados ou versionados.
+Copie `backend/.env.example` para `backend/.env` e preencha os valores. O arquivo `.env` é ignorado pelo Git e não deve ser versionado.
 
 ```dotenv
+SPRING_PROFILES_ACTIVE=dsv
+
 POSTGRES_DB=
 POSTGRES_USER=
 POSTGRES_PASSWORD=
+
 MONGO_ROOT_USERNAME=
 MONGO_ROOT_PASSWORD=
 MONGO_DATABASE=
+
 JWT_SECRET=
 JWT_ISSUER=
+JWT_EXPIRATION_HOURS=2
+
 GOOGLE_CLIENT_ID=
 ADMIN_EMAILS=
+
+CORS_ALLOWED_ORIGINS=http://localhost:4200
+SERVER_PORT=8080
 ```
 
-`ADMIN_EMAILS` aceita uma lista separada por vírgulas.
+- `ADMIN_EMAILS` aceita uma lista separada por vírgulas;
+- `CORS_ALLOWED_ORIGINS` aceita origens explícitas separadas por vírgulas;
+- `CORS_ALLOWED_ORIGINS` não aceita `*` porque a API permite credenciais;
+- `JWT_SECRET` deve usar um valor longo, aleatório e diferente por ambiente.
+
+No perfil `prod`, a persistência usa:
+
+```dotenv
+SPRING_PROFILES_ACTIVE=prod
+DATABASE_URL=jdbc:postgresql://host:5432/database
+DATABASE_USERNAME=
+DATABASE_PASSWORD=
+DATABASE_MAX_POOL_SIZE=10
+DATABASE_MIN_IDLE=2
+MONGODB_URI=mongodb://user:password@host:27017/database
+CORS_ALLOWED_ORIGINS=https://example.com
+SWAGGER_ENABLED=false
+ROOT_LOG_LEVEL=INFO
+FLYWAY_BASELINE_ON_MIGRATE=false
+```
 
 ### Bancos com Docker
 
@@ -507,12 +581,16 @@ cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
+Na inicialização, o Flyway aplica migrações pendentes antes da validação do Hibernate.
+
 ### Swagger
 
-Com a aplicação em execução:
+No perfil `dsv`, com a aplicação em execução:
 
 - UI: `http://localhost:8080/swagger-ui/index.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+
+No perfil `prod`, Swagger e OpenAPI ficam desativados. Para ativá-los deliberadamente, defina `SWAGGER_ENABLED=true`.
 
 ## 12. Testes
 
@@ -534,6 +612,7 @@ O Mockito é carregado como `-javaagent` pelo Maven Surefire. Isso evita a depen
 | `TokenServiceTest`              | geração, claims, issuer e token inválido                 |
 | `SecurityFilterTest`            | autenticação de convidado/admin e tokens impróprios      |
 | `PublicEndpointRateLimiterTest` | limite, bloqueio e IP encaminhado                        |
+| `SecurityConfigTest`            | origens permitidas e rejeição de CORS curinga            |
 | `AuthControllerTest`            | login, resposta, código inválido e rate limit            |
 | `GuestRsvpControllerTest`       | identidade autenticada, `/me`, confirmação e recusa      |
 | `GuestRsvpServiceTest`          | consulta por ID, atualização e geração do código         |
@@ -552,7 +631,7 @@ No perfil `dsv`, seeders inserem convidados e presentes quando as respectivas ta
 Observações:
 
 - os seeders não executam no perfil de teste;
-- o perfil `dsv` é definido como ativo no `application.yml`;
+- o perfil `dsv` é usado por padrão quando nenhum perfil ativo é informado;
 - dados de seed são apenas para desenvolvimento.
 
 ## 14. Integração do cliente com RSVP

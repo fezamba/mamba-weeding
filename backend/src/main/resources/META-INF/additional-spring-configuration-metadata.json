@@ -1,32 +1,39 @@
-{"properties": [
-  {
-    "name": "api.security.google.client-id",
-    "type": "java.lang.String",
-    "description": "A description for 'api.security.google.client-id'"
-  },
-  {
-    "name": "api.security.admin.emails",
-    "type": "java.lang.String",
-    "description": "A description for 'api.security.admin.emails'"
-  },
-  {
-    "name": "api.security.token.secret",
-    "type": "java.lang.String",
-    "description": "A description for 'api.security.token.secret'"
-  },
-  {
-    "name": "api.security.token.issuer",
-    "type": "java.lang.String",
-    "description": "A description for 'api.security.token.issuer'"
-  },
-  {
-    "name": "api.security.token.expiration-hours",
-    "type": "java.lang.String",
-    "description": "A description for 'api.security.token.expiration-hours'"
-  },
-  {
-    "name": "api.security.token.expiration-hours",
-    "type": "java.lang.String",
-    "description": "A description for 'api.security.token.expiration-hours'"
-  }
-]}
+{
+  "properties": [
+    {
+      "name": "api.security.google.client-id",
+      "type": "java.lang.String",
+      "description": "A description for 'api.security.google.client-id'"
+    },
+    {
+      "name": "api.security.admin.emails",
+      "type": "java.lang.String",
+      "description": "A description for 'api.security.admin.emails'"
+    },
+    {
+      "name": "api.security.token.secret",
+      "type": "java.lang.String",
+      "description": "A description for 'api.security.token.secret'"
+    },
+    {
+      "name": "api.security.token.issuer",
+      "type": "java.lang.String",
+      "description": "A description for 'api.security.token.issuer'"
+    },
+    {
+      "name": "api.security.token.expiration-hours",
+      "type": "java.lang.String",
+      "description": "A description for 'api.security.token.expiration-hours'"
+    },
+    {
+      "name": "api.security.token.expiration-hours",
+      "type": "java.lang.String",
+      "description": "A description for 'api.security.token.expiration-hours'"
+    },
+    {
+      "name": "app.cors.allowed-origins",
+      "type": "java.lang.String",
+      "description": "A description for 'app.cors.allowed-origins'"
+    }
+  ]
+}

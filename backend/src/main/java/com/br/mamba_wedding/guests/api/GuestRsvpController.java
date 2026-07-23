@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/rsvp")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class GuestRsvpController {
 
     private final GuestRsvpService guestRsvpService;

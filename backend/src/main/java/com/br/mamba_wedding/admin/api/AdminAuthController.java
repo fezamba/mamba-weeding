@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin/auth")
-@CrossOrigin(origins = "*")
 public class AdminAuthController {
 
     private final TokenService tokenService;

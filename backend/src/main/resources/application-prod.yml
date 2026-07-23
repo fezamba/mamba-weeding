@@ -1,0 +1,34 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DATABASE_MAX_POOL_SIZE:10}
+      minimum-idle: ${DATABASE_MIN_IDLE:2}
+
+  mongodb:
+    uri: ${MONGODB_URI}
+
+  flyway:
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
+    baseline-version: 0
+
+  jpa:
+    show-sql: false
+
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
+
+logging:
+  level:
+    root: ${ROOT_LOG_LEVEL:INFO}
+    "[org.hibernate.SQL]": WARN
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}

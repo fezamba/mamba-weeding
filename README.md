@@ -4,6 +4,8 @@ This project is a comprehensive web application for wedding management, comprisi
 
 The system features RSVP confirmation via access codes, guest management, a gift registry, payment gateway integration, and a hybrid storage architecture utilizing PostgreSQL and MongoDB.
 
+Backend setup, architecture and API contracts are documented in [`docs/BACKEND.md`](docs/BACKEND.md).
+
 ---
 
 ## Estrutura do Repositório
@@ -11,7 +13,7 @@ The system features RSVP confirmation via access codes, guest management, a gift
 ```
 mamba-wedding/
  ├── backend/          # Spring Boot Application
- ├── frontend/         # React Application
+ ├── frontend/         # Angular Application
  ├── infra/            # Infrastructure Configurations
  ├── docs/             # Documentation
  └── README.md
@@ -23,9 +25,8 @@ mamba-wedding/
 
 ### Frontend
 
-- React
+- Angular
 - TypeScript
-- Tailwind CSS
 
 ### Backend
 
