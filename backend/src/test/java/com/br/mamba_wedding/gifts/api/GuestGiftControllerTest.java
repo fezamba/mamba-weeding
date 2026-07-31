@@ -54,7 +54,7 @@ class GuestGiftControllerTest {
 
     @Test
     void reserve_ShouldUseAuthenticatedGuestId() throws Exception {
-        mockMvc.perform(post("/api/gifts/3/reserve")
+        mockMvc.perform(post("/api/v1/gifts/3/reserve")
                         .with(authentication(guestAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"quotas\":2}"))
@@ -65,7 +65,7 @@ class GuestGiftControllerTest {
 
     @Test
     void reserve_ShouldRejectNonPositiveQuota() throws Exception {
-        mockMvc.perform(post("/api/gifts/3/reserve")
+        mockMvc.perform(post("/api/v1/gifts/3/reserve")
                         .with(authentication(guestAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"quotas\":0}"))
@@ -76,7 +76,7 @@ class GuestGiftControllerTest {
 
     @Test
     void cancel_ShouldUseAuthenticatedGuestId() throws Exception {
-        mockMvc.perform(delete("/api/gifts/3/reserve").with(authentication(guestAuthentication())))
+        mockMvc.perform(delete("/api/v1/gifts/3/reserve").with(authentication(guestAuthentication())))
                 .andExpect(status().isNoContent());
 
         verify(giftService).cancelReserve(3L, 9L);
@@ -84,7 +84,7 @@ class GuestGiftControllerTest {
 
     @Test
     void buy_ShouldUseAuthenticatedGuestId() throws Exception {
-        mockMvc.perform(post("/api/gifts/3/buy").with(authentication(guestAuthentication())))
+        mockMvc.perform(post("/api/v1/gifts/3/buy").with(authentication(guestAuthentication())))
                 .andExpect(status().isNoContent());
 
         verify(giftService).buy(3L, 9L);

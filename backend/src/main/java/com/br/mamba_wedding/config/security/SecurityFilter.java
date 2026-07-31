@@ -1,5 +1,6 @@
 package com.br.mamba_wedding.config.security;
 
+import com.br.mamba_wedding.common.api.ApiErrorWriter;
 import com.br.mamba_wedding.guests.domain.Guest;
 import com.br.mamba_wedding.guests.domain.GuestNotFoundException;
 import com.br.mamba_wedding.guests.infrastructure.GuestRepository;
@@ -13,6 +14,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.http.HttpStatus;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -23,10 +25,12 @@ public class SecurityFilter extends OncePerRequestFilter {
 
     private final TokenService tokenService;
     private final GuestRepository guestRepository;
+    private final ApiErrorWriter apiErrorWriter;
 
-    public SecurityFilter(TokenService tokenService, GuestRepository guestRepository) {
+    public SecurityFilter(TokenService tokenService, GuestRepository guestRepository, ApiErrorWriter apiErrorWriter) {
         this.tokenService = tokenService;
         this.guestRepository = guestRepository;
+        this.apiErrorWriter = apiErrorWriter;
     }
 
     @Override
@@ -54,7 +58,8 @@ public class SecurityFilter extends OncePerRequestFilter {
                         principal = guest;
                     } catch (GuestNotFoundException ex) {
                         SecurityContextHolder.clearContext();
-                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token de convidado inválido.");
+                        apiErrorWriter.write(request, response, HttpStatus.UNAUTHORIZED,
+                                "Token de convidado inválido.");
                         return;
                     }
                     

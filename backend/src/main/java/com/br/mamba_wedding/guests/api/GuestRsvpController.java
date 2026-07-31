@@ -1,6 +1,7 @@
 package com.br.mamba_wedding.guests.api;
 
 
+import com.br.mamba_wedding.common.api.ApiPaths;
 import com.br.mamba_wedding.guests.api.dto.RsvpActionRequest;
 import com.br.mamba_wedding.guests.api.dto.RsvpResponse;
 import com.br.mamba_wedding.guests.application.GuestRsvpService;
@@ -13,7 +14,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/rsvp")
+@RequestMapping(ApiPaths.V1 + "/rsvp")
 @RequiredArgsConstructor
 public class GuestRsvpController {
 

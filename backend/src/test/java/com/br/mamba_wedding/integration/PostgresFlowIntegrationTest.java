@@ -46,10 +46,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @Testcontainers
 @ActiveProfiles("integration")
-@SpringBootTest(properties = "spring.autoconfigure.exclude="
-        + "org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration,"
-        + "org.springframework.boot.data.mongodb.autoconfigure.DataMongoAutoConfiguration,"
-        + "org.springframework.boot.data.mongodb.autoconfigure.DataMongoRepositoriesAutoConfiguration")
+@SpringBootTest(properties = {
+        "app.persistence.mongo-repositories.enabled=false",
+        "spring.autoconfigure.exclude="
+                + "org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration,"
+                + "org.springframework.boot.data.mongodb.autoconfigure.DataMongoAutoConfiguration,"
+                + "org.springframework.boot.data.mongodb.autoconfigure.DataMongoRepositoriesAutoConfiguration"
+})
 @AutoConfigureMockMvc
 class PostgresFlowIntegrationTest {
 
@@ -88,7 +91,7 @@ class PostgresFlowIntegrationTest {
     void loginAndRsvp_ShouldAuthenticateAndPersistConfirmation() throws Exception {
         Guest guest = guestRepository.saveAndFlush(newGuest("RSVP123", "Convidada Integração"));
 
-        String loginBody = mockMvc.perform(post("/api/auth/login")
+        String loginBody = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"rsvpCode\":\"RSVP123\"}"))
                 .andExpect(status().isOk())
@@ -100,13 +103,34 @@ class PostgresFlowIntegrationTest {
 
         String token = JsonPath.read(loginBody, "$.token");
 
-        mockMvc.perform(get("/api/rsvp/me")
+        mockMvc.perform(get("/api/v1/rsvp/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.path").value("/api/v1/rsvp/me"));
+
+        mockMvc.perform(post("/api/v1/admin/gifts/register")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.path").value("/api/v1/admin/gifts/register"));
+
+        String adminToken = tokenService.generateToken("admin@example.com", "ROLE_ADMIN");
+        mockMvc.perform(get("/api/v1/rsvp/me")
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403));
+
+        mockMvc.perform(get("/api/v1/rsvp/me")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fullName").value("Convidada Integração"))
                 .andExpect(jsonPath("$.rsvpStatus").value("PENDING"));
 
-        mockMvc.perform(post("/api/rsvp/confirm")
+        mockMvc.perform(post("/api/v1/rsvp/confirm")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -127,12 +151,33 @@ class PostgresFlowIntegrationTest {
     }
 
     @Test
+    void giftList_ShouldPaginateFilterAndOrderAgainstPostgres() throws Exception {
+        Guest guest = guestRepository.saveAndFlush(newGuest("LIST123", "Convidada da Lista"));
+        giftRepository.saveAndFlush(newGift("Cafeteira", 4));
+        Gift matchingGift = giftRepository.saveAndFlush(newGift("Jogo de panelas", 6));
+        String token = tokenService.generateToken(guest.getRsvpCode(), "ROLE_GUEST");
+
+        mockMvc.perform(get("/api/v1/gifts")
+                        .header("Authorization", "Bearer " + token)
+                        .param("name", "PANELAS")
+                        .param("page", "0")
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(matchingGift.getId()))
+                .andExpect(jsonPath("$.content[0].name").value("Jogo de panelas"))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(1))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
     void reserveEndpoint_ShouldLinkReservationToAuthenticatedGuest() throws Exception {
         Guest guest = guestRepository.saveAndFlush(newGuest("GIFT123", "Convidado do Presente"));
         Gift gift = giftRepository.saveAndFlush(newGift("Jogo de panelas", 4));
         String token = tokenService.generateToken(guest.getRsvpCode(), "ROLE_GUEST");
 
-        mockMvc.perform(post("/api/gifts/{id}/reserve", gift.getId())
+        mockMvc.perform(post("/api/v1/gifts/{id}/reserve", gift.getId())
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"quotas\":2}"))

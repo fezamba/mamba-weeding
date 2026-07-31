@@ -73,7 +73,7 @@ class GuestRsvpControllerTest {
         when(guestRsvpService.findCurrent(7L)).thenReturn(
                 new RsvpResponse("Convidado Teste", GuestStatus.PENDING, "guest@mail.com", "21999999999", null));
 
-        mockMvc.perform(get("/api/rsvp/me").with(authentication(guestAuthentication())))
+        mockMvc.perform(get("/api/v1/rsvp/me").with(authentication(guestAuthentication())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fullName").value("Convidado Teste"))
                 .andExpect(jsonPath("$.rsvpStatus").value("PENDING"))
@@ -84,7 +84,7 @@ class GuestRsvpControllerTest {
 
     @Test
     void confirm_ShouldUseAuthenticatedGuestId() throws Exception {
-        mockMvc.perform(post("/api/rsvp/confirm")
+        mockMvc.perform(post("/api/v1/rsvp/confirm")
                         .with(authentication(guestAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validActionBody("Até lá")))
@@ -95,7 +95,7 @@ class GuestRsvpControllerTest {
 
     @Test
     void decline_ShouldUseAuthenticatedGuestId() throws Exception {
-        mockMvc.perform(post("/api/rsvp/decline")
+        mockMvc.perform(post("/api/v1/rsvp/decline")
                         .with(authentication(guestAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(validActionBody("Não poderei ir")))
@@ -106,7 +106,7 @@ class GuestRsvpControllerTest {
 
     @Test
     void confirm_ShouldRejectInvalidPayload() throws Exception {
-        mockMvc.perform(post("/api/rsvp/confirm")
+        mockMvc.perform(post("/api/v1/rsvp/confirm")
                         .with(authentication(guestAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -119,7 +119,7 @@ class GuestRsvpControllerTest {
 
     @Test
     void me_ShouldRejectAnonymousRequest() throws Exception {
-        mockMvc.perform(get("/api/rsvp/me"))
+        mockMvc.perform(get("/api/v1/rsvp/me"))
                 .andExpect(status().isUnauthorized());
     }
 

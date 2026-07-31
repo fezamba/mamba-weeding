@@ -1,5 +1,6 @@
 package com.br.mamba_wedding.guests.api;
 
+import com.br.mamba_wedding.common.api.ApiPaths;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -18,7 +19,7 @@ import com.br.mamba_wedding.guests.api.dto.GuestCreated;
 import com.br.mamba_wedding.guests.application.GuestRsvpService;
 
 @RestController
-@RequestMapping("/api/admin/guests")
+@RequestMapping(ApiPaths.V1 + "/admin/guests")
 @RequiredArgsConstructor
 public class AdminGuestController {
 

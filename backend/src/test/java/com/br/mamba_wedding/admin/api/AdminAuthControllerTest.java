@@ -55,7 +55,7 @@ class AdminAuthControllerTest {
 
     @Test
     void authenticateGoogle_ShouldReturnBadRequestWhenTokenIsBlank() throws Exception {
-        mockMvc.perform(post("/api/admin/auth/google")
+        mockMvc.perform(post("/api/v1/admin/auth/google")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -65,17 +65,17 @@ class AdminAuthControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.path").value("/api/admin/auth/google"));
+                .andExpect(jsonPath("$.path").value("/api/v1/admin/auth/google"));
     }
 
     @Test
     void authenticateGoogle_ShouldReturnBadRequestWhenRequestBodyIsInvalid() throws Exception {
-        mockMvc.perform(post("/api/admin/auth/google")
+        mockMvc.perform(post("/api/v1/admin/auth/google")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.path").value("/api/admin/auth/google"));
+                .andExpect(jsonPath("$.path").value("/api/v1/admin/auth/google"));
     }
 }

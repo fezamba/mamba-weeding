@@ -14,6 +14,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.mongodb.MongoDBContainer;
@@ -26,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("integration")
 @SpringBootTest(properties = {
         "spring.flyway.enabled=false",
+        "app.persistence.jpa-repositories.enabled=false",
         "spring.autoconfigure.exclude="
                 + "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,"
                 + "org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration,"
@@ -64,9 +67,21 @@ class MongoMessageIntegrationTest {
         messageRepository.save(older);
         messageRepository.save(newer);
 
-        assertThat(messageService.listMessages())
+        var page = messageService.listMessages(
+                null,
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "sendDate", "id")));
+
+        assertThat(page.getContent())
                 .extracting(Message::getAuthor)
                 .containsExactly("Convidado recente", "Convidada antiga");
+        assertThat(page.getTotalElements()).isEqualTo(2);
+
+        var filtered = messageService.listMessages(
+                "recente",
+                PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "sendDate", "id")));
+        assertThat(filtered.getContent())
+                .extracting(Message::getAuthor)
+                .containsExactly("Convidado recente");
         assertThat(messageRepository.count()).isEqualTo(2);
     }
 }

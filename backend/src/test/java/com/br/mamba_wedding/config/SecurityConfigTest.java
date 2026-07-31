@@ -14,11 +14,12 @@ class SecurityConfigTest {
     void corsConfiguration_ShouldAcceptOnlyConfiguredOrigins() {
         SecurityConfig securityConfig = new SecurityConfig(
                 null,
+                null,
                 "http://localhost:5173, https://wedding.example.com");
 
         UrlBasedCorsConfigurationSource source =
                 (UrlBasedCorsConfigurationSource) securityConfig.corsConfigurationSource();
-        CorsConfiguration configuration = source.getCorsConfiguration(new MockHttpServletRequest("GET", "/api/gifts"));
+        CorsConfiguration configuration = source.getCorsConfiguration(new MockHttpServletRequest("GET", "/api/v1/gifts"));
 
         assertEquals(
                 java.util.List.of("http://localhost:5173", "https://wedding.example.com"),
@@ -28,6 +29,6 @@ class SecurityConfigTest {
 
     @Test
     void constructor_ShouldRejectWildcardOrigin() {
-        assertThrows(IllegalArgumentException.class, () -> new SecurityConfig(null, "*"));
+        assertThrows(IllegalArgumentException.class, () -> new SecurityConfig(null, null, "*"));
     }
 }

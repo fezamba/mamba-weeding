@@ -79,7 +79,7 @@ class AuthControllerTest {
         when(guestRepository.findByRsvpCode("ABC1234")).thenReturn(Optional.of(guest));
         when(tokenService.generateToken("ABC1234", "ROLE_GUEST")).thenReturn("jwt-token");
 
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -99,7 +99,7 @@ class AuthControllerTest {
     void login_ShouldReturnNotFoundWhenGuestDoesNotExist() throws Exception {
         when(guestRepository.findByRsvpCode("MISSING")).thenReturn(Optional.empty());
 
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -109,14 +109,14 @@ class AuthControllerTest {
                                                                 .andExpect(status().isNotFound())
                                                                 .andExpect(jsonPath("$.status").value(404))
                                                                 .andExpect(jsonPath("$.error").value("Not Found"))
-                                                                .andExpect(jsonPath("$.path").value("/api/auth/login"));
+                                                                .andExpect(jsonPath("$.path").value("/api/v1/auth/login"));
 
         verify(tokenService, never()).generateToken(any(), any());
     }
 
     @Test
     void login_ShouldReturnBadRequestForInvalidInput() throws Exception {
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -126,7 +126,20 @@ class AuthControllerTest {
                                                                 .andExpect(status().isBadRequest())
                                                                 .andExpect(jsonPath("$.status").value(400))
                                                                 .andExpect(jsonPath("$.error").value("Bad Request"))
-                                                                .andExpect(jsonPath("$.path").value("/api/auth/login"));
+                                                                .andExpect(jsonPath("$.path").value("/api/v1/auth/login"));
+
+        verify(guestRepository, never()).findByRsvpCode(any());
+    }
+
+    @Test
+    void login_ShouldReturnBadRequestForMalformedJson() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("Requisição inválida."))
+                .andExpect(jsonPath("$.path").value("/api/v1/auth/login"));
 
         verify(guestRepository, never()).findByRsvpCode(any());
     }
@@ -140,7 +153,7 @@ class AuthControllerTest {
                 .when(rateLimiter)
                 .assertAllowed(any(), eq("auth-login"), eq("ABC1234"), eq(10), eq(Duration.ofMinutes(1)));
 
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -150,7 +163,7 @@ class AuthControllerTest {
                                                                 .andExpect(status().isTooManyRequests())
                                                                 .andExpect(jsonPath("$.status").value(429))
                                                                 .andExpect(jsonPath("$.error").value("Too Many Requests"))
-                                                                .andExpect(jsonPath("$.path").value("/api/auth/login"));
+                                                                .andExpect(jsonPath("$.path").value("/api/v1/auth/login"));
 
         verify(tokenService, never()).generateToken(any(), any());
     }
@@ -159,7 +172,7 @@ class AuthControllerTest {
     void login_ShouldReturnNotFoundFromRepositoryException() throws Exception {
         when(guestRepository.findByRsvpCode("UNKNOWN")).thenThrow(new GuestNotFoundException());
 
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -169,6 +182,6 @@ class AuthControllerTest {
                                                                 .andExpect(status().isNotFound())
                                                                 .andExpect(jsonPath("$.status").value(404))
                                                                 .andExpect(jsonPath("$.error").value("Not Found"))
-                                                                .andExpect(jsonPath("$.path").value("/api/auth/login"));
+                                                                .andExpect(jsonPath("$.path").value("/api/v1/auth/login"));
     }
 }

@@ -55,7 +55,7 @@ class GuestControllerTest {
             return http
                     .csrf(csrf -> csrf.disable())
                     .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/admin/guests/**").hasAuthority("ROLE_ADMIN")
+                    .requestMatchers("/api/v1/admin/guests/**").hasAuthority("ROLE_ADMIN")
                             .anyRequest().permitAll())
                     .build();
         }
@@ -96,7 +96,7 @@ class GuestControllerTest {
     void register_ShouldAllowAdmin() throws Exception {
         when(guestRsvpService.register(any())).thenReturn(new GuestCreated(sampleGuest()));
 
-        mockMvc.perform(post("/api/admin/guests/register")
+        mockMvc.perform(post("/api/v1/admin/guests/register")
                 .with(user("admin").authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
@@ -107,7 +107,7 @@ class GuestControllerTest {
 
     @Test
     void register_ShouldReturnForbidden_WhenUserIsGuest() throws Exception {
-        mockMvc.perform(post("/api/admin/guests/register")
+        mockMvc.perform(post("/api/v1/admin/guests/register")
                 .with(user("guest").authorities(new SimpleGrantedAuthority("ROLE_GUEST")))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
@@ -118,7 +118,7 @@ class GuestControllerTest {
 
     @Test
     void register_ShouldReturnForbidden_WhenUserIsAnonymous() throws Exception {
-        mockMvc.perform(post("/api/admin/guests/register")
+        mockMvc.perform(post("/api/v1/admin/guests/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
                 .andExpect(status().isForbidden());
@@ -130,7 +130,7 @@ class GuestControllerTest {
     void delete_ShouldAllowAdmin() throws Exception {
         doNothing().when(guestRsvpService).delete(1L);
 
-        mockMvc.perform(delete("/api/admin/guests/{id}/delete", 1L)
+        mockMvc.perform(delete("/api/v1/admin/guests/{id}/delete", 1L)
                 .with(user("admin").authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
                 .andExpect(status().isNoContent());
 
@@ -139,7 +139,7 @@ class GuestControllerTest {
 
     @Test
     void delete_ShouldReturnForbidden_WhenUserIsGuest() throws Exception {
-        mockMvc.perform(delete("/api/admin/guests/{id}/delete", 1L)
+        mockMvc.perform(delete("/api/v1/admin/guests/{id}/delete", 1L)
                 .with(user("guest").authorities(new SimpleGrantedAuthority("ROLE_GUEST"))))
                 .andExpect(status().isForbidden());
 
@@ -148,7 +148,7 @@ class GuestControllerTest {
 
     @Test
     void delete_ShouldReturnForbidden_WhenUserIsAnonymous() throws Exception {
-        mockMvc.perform(delete("/api/admin/guests/{id}/delete", 1L))
+        mockMvc.perform(delete("/api/v1/admin/guests/{id}/delete", 1L))
                 .andExpect(status().isForbidden());
 
         verify(guestRsvpService, never()).delete(1L);
@@ -159,7 +159,7 @@ class GuestControllerTest {
         doThrow(new GuestNotFoundException())
             .when(guestRsvpService).delete(99L);
 
-        mockMvc.perform(delete("/api/admin/guests/{id}/delete", 99L)
+        mockMvc.perform(delete("/api/v1/admin/guests/{id}/delete", 99L)
             .with(user("admin").authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
             .andExpect(status().isNotFound());
     }

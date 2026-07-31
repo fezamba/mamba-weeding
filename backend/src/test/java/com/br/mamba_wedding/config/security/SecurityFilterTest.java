@@ -1,5 +1,6 @@
 package com.br.mamba_wedding.config.security;
 
+import com.br.mamba_wedding.common.api.ApiErrorWriter;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.br.mamba_wedding.guests.domain.Guest;
@@ -13,6 +14,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -35,7 +37,7 @@ class SecurityFilterTest {
     void setUp() {
         tokenService = mock(TokenService.class);
         guestRepository = mock(GuestRepository.class);
-        securityFilter = new SecurityFilter(tokenService, guestRepository);
+        securityFilter = new SecurityFilter(tokenService, guestRepository, new ApiErrorWriter(new ObjectMapper()));
         SecurityContextHolder.clearContext();
     }
 
@@ -124,6 +126,10 @@ class SecurityFilterTest {
         securityFilter.doFilter(request, response, chain);
 
         assertEquals(401, response.getStatus());
+        org.assertj.core.api.Assertions.assertThat(response.getContentType())
+                .startsWith("application/json");
+        org.assertj.core.api.Assertions.assertThat(response.getContentAsString())
+                .contains("Token de convidado inválido.", "\"status\":401");
         assertNull(SecurityContextHolder.getContext().getAuthentication());
         verify(guestRepository).findByRsvpCode("UNKNOWN");
     }

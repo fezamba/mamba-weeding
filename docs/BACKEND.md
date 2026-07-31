@@ -62,6 +62,8 @@ backend/src/main/java/com/br/mamba_wedding/
 │   └── exception/           exceções e tratamento global
 ├── config/
 │   ├── security/            JWT, filtro e rate limiter
+│   ├── JpaRepositoryConfig.java
+│   ├── MongoRepositoryConfig.java
 │   ├── SecurityConfig.java
 │   └── *DataSeeder.java     dados do perfil de desenvolvimento
 ├── gifts/
@@ -102,6 +104,8 @@ Controller → Service → Repository → Banco
 ```
 
 Controllers validam o contrato HTTP e identificam o usuário autenticado. Services concentram as regras de negócio. Repositórios encapsulam a persistência. Entidades representam o domínio persistido.
+
+O escaneamento de persistência é explícito e separado por tecnologia. `JpaRepositoryConfig` registra somente os repositórios de `gifts.infrastructure` e `guests.infrastructure`. `MongoRepositoryConfig` registra somente `messages.infrastructure`. As duas configurações ficam inativas no perfil `test`, no qual os repositórios são substituídos por mocks.
 
 ## 4. Persistência
 
@@ -196,7 +200,7 @@ O código RSVP funciona como credencial de entrada:
 ```text
 Código RSVP
     ↓
-POST /api/auth/login
+POST /api/v1/auth/login
     ↓
 JWT com ROLE_GUEST
     ↓
@@ -204,6 +208,8 @@ Endpoints autenticados
 ```
 
 Depois do login, o backend identifica o convidado pelo JWT. Endpoints de RSVP e presentes não aceitam outro código ou nome para selecionar o convidado. Isso impede que um convidado altere dados ou reservas de outro.
+
+A aplicação exclui `UserDetailsServiceAutoConfiguration`. Não é criado usuário em memória, não é emitida senha automática no log e a autenticação HTTP da aplicação é realizada pelo filtro JWT e pelo login Google administrativo.
 
 O JWT possui:
 
@@ -226,14 +232,15 @@ Após a autorização, o backend emite um JWT interno com `ROLE_ADMIN` e o e-mai
 
 | Regra de acesso | Endpoints |
 |---|---|
-| Público | `POST /api/auth/login` |
-| Público | `POST /api/admin/auth/google` |
-| Público | `GET /api/messages` |
+| Público | `POST /api/v1/auth/login` |
+| Público | `POST /api/v1/admin/auth/google` |
+| Público | `GET /api/v1/messages` |
 | Público quando habilitado | Swagger e OpenAPI |
-| JWT válido | Endpoints não públicos de RSVP, presentes e mensagens |
-| `ROLE_ADMIN` | `/api/admin/**`, exceto o login Google |
+| `ROLE_GUEST` | RSVP, criação de mensagem e operações de reserva/compra |
+| JWT válido | Consulta de presentes |
+| `ROLE_ADMIN` | `/api/v1/admin/**`, exceto o login Google |
 
-Requisições sem autenticação para recursos protegidos recebem `401`. Acesso a `/api/admin/**` sem `ROLE_ADMIN` recebe `403`. Endpoints que alteram RSVP, reservas e mensagens obtêm o objeto `Guest` do principal autenticado criado para tokens `ROLE_GUEST`.
+Requisições sem autenticação para recursos protegidos recebem `401`. Acesso a `/api/v1/admin/**` sem `ROLE_ADMIN` recebe `403`. Endpoints que alteram RSVP, reservas e mensagens obtêm o objeto `Guest` do principal autenticado criado para tokens `ROLE_GUEST`.
 
 ### CORS
 
@@ -248,7 +255,21 @@ O CORS é aplicado a todas as rotas. As origens são lidas de `CORS_ALLOWED_ORIG
 
 Por padrão, a aplicação executa em `http://localhost:8080`.
 
-As rotas usam o prefixo `/api` sem segmento de versão. As listagens de presentes e mensagens retornam a coleção completa em um array JSON e não recebem parâmetros de paginação, filtro ou ordenação. A ordem das mensagens é definida pelo backend; a listagem de presentes não declara uma ordenação no contrato.
+As rotas usam o prefixo versionado `/api/v1`. As listagens de presentes e mensagens retornam um envelope paginado estável. A página começa em zero, o tamanho padrão é 20 e o tamanho máximo aceito é 100.
+
+Formato das respostas paginadas:
+
+```json
+{
+  "content": [],
+  "page": 0,
+  "size": 20,
+  "totalElements": 0,
+  "totalPages": 0,
+  "first": true,
+  "last": true
+}
+```
 
 Para endpoints autenticados:
 
@@ -258,7 +279,7 @@ Authorization: Bearer <jwt>
 
 ### 6.1 Login do convidado
 
-#### `POST /api/auth/login`
+#### `POST /api/v1/auth/login`
 
 Requisição:
 
@@ -284,7 +305,7 @@ O endpoint possui rate limit de 10 tentativas por minuto por combinação de IP 
 
 Dados pessoais de RSVP somente são retornados depois da autenticação.
 
-#### `GET /api/rsvp/me`
+#### `GET /api/v1/rsvp/me`
 
 Resposta `200`:
 
@@ -298,9 +319,9 @@ Resposta `200`:
 }
 ```
 
-#### `POST /api/rsvp/confirm`
+#### `POST /api/v1/rsvp/confirm`
 
-#### `POST /api/rsvp/decline`
+#### `POST /api/v1/rsvp/decline`
 
 Ambos recebem:
 
@@ -322,15 +343,21 @@ Resposta de sucesso: `204 No Content`.
 
 ### 6.3 Presentes
 
-#### `GET /api/gifts`
+#### `GET /api/v1/gifts`
 
-Retorna `200` com uma lista de presentes. Cada item contém `id`, `name`, `description`, `value`, `quotaValue`, `totalQuotas`, `availableQuotas`, `imageUrl`, `purchaseLink` e `soldOut`.
+Parâmetros opcionais:
 
-#### `GET /api/gifts/{id}`
+- `page`: índice da página, a partir de zero;
+- `size`: quantidade de itens, entre 1 e 100;
+- `name`: trecho do nome, sem diferenciação entre maiúsculas e minúsculas.
+
+Os presentes são ordenados por `id` crescente. Cada item contém `id`, `name`, `description`, `value`, `quotaValue`, `totalQuotas`, `availableQuotas`, `imageUrl`, `purchaseLink` e `soldOut`.
+
+#### `GET /api/v1/gifts/{id}`
 
 Retorna `200` com os mesmos campos calculados da listagem para o presente identificado. Um identificador inexistente produz `404`.
 
-#### `POST /api/gifts/{id}/reserve`
+#### `POST /api/v1/gifts/{id}/reserve`
 
 ```json
 {
@@ -349,13 +376,13 @@ Regras:
 
 Resposta de sucesso: `204 No Content`.
 
-#### `DELETE /api/gifts/{id}/reserve`
+#### `DELETE /api/v1/gifts/{id}/reserve`
 
 Cancela a reserva ativa do convidado autenticado. Um convidado não pode cancelar a reserva de outro.
 
 Resposta de sucesso: `204 No Content`.
 
-#### `POST /api/gifts/{id}/buy`
+#### `POST /api/v1/gifts/{id}/buy`
 
 Compra as cotas previamente reservadas pelo convidado autenticado. Uma reserva expirada não pode ser comprada.
 
@@ -365,11 +392,11 @@ Resposta de sucesso: `204 No Content`.
 
 ### 6.4 Mensagens
 
-#### `GET /api/messages`
+#### `GET /api/v1/messages`
 
-Retorna `200` com a lista pública de mensagens em ordem decrescente de `sendDate`.
+Aceita `page` e `size` com as mesmas regras da listagem de presentes e o filtro opcional `author`, que busca um trecho do autor sem diferenciar maiúsculas e minúsculas. As mensagens são ordenadas por `sendDate` e `id`, ambos decrescentes.
 
-#### `POST /api/messages`
+#### `POST /api/v1/messages`
 
 Requer convidado autenticado.
 
@@ -385,7 +412,7 @@ Retorna `200` com a mensagem persistida, incluindo `id`, `author`, `text` e `sen
 
 ### 6.5 Administração de convidados
 
-#### `POST /api/admin/guests/register`
+#### `POST /api/v1/admin/guests/register`
 
 ```json
 {
@@ -400,7 +427,7 @@ O código RSVP é gerado com três letras normalizadas do nome e quatro dígitos
 
 Retorna `201 Created` com `fullName`, `rsvpCode`, `side`, `email` e `phone`.
 
-#### `DELETE /api/admin/guests/{id}/delete`
+#### `DELETE /api/v1/admin/guests/{id}/delete`
 
 Exclui um convidado existente.
 
@@ -408,7 +435,7 @@ Resposta de sucesso: `204 No Content`.
 
 ### 6.6 Administração de presentes
 
-#### `POST /api/admin/gifts/register`
+#### `POST /api/v1/admin/gifts/register`
 
 ```json
 {
@@ -425,7 +452,7 @@ Valor e total de cotas devem ser positivos.
 
 Retorna `201 Created` com os dados persistidos e o valor calculado por cota.
 
-#### `DELETE /api/admin/gifts/{id}/delete`
+#### `DELETE /api/v1/admin/gifts/{id}/delete`
 
 Exclui um presente existente e suas transações associadas.
 
@@ -433,7 +460,7 @@ Resposta de sucesso: `204 No Content`.
 
 ### 6.7 Login administrativo
 
-#### `POST /api/admin/auth/google`
+#### `POST /api/v1/admin/auth/google`
 
 ```json
 {
@@ -466,7 +493,7 @@ Erros tratados pelo backend seguem o formato:
   "status": 400,
   "error": "Bad Request",
   "message": "Descrição do erro",
-  "path": "/api/example"
+  "path": "/api/v1/example"
 }
 ```
 
@@ -635,6 +662,8 @@ Os testes de integração exigem acesso direto do processo Maven ao Docker; `doc
 
 O Maven Surefire executa os testes rápidos durante a fase `test`. O Maven Failsafe executa as classes `*IntegrationTest` nas fases `integration-test` e `verify`. O Mockito é carregado como `-javaagent` nos dois executores, evitando a dependência do mecanismo de auto-attach da JVM.
 
+O workflow `.github/workflows/backend-ci.yml` executa `./mvnw clean verify` em Java 21 para eventos de `push` e `pull_request`. O job usa um runner Linux com Docker disponível para o Testcontainers e cache local das dependências Maven.
+
 ### Cobertura existente por área
 
 | Suíte                           | Responsabilidade                                         |
@@ -649,8 +678,9 @@ O Maven Surefire executa os testes rápidos durante a fase `test`. O Maven Fails
 | `GuestRsvpControllerTest`       | identidade autenticada, `/me`, confirmação e recusa      |
 | `GuestRsvpServiceTest`          | consulta por ID, atualização e geração do código         |
 | `GuestControllerTest`           | autorização dos endpoints administrativos                |
-| `GiftControllerTest`            | autorização administrativa de presentes                  |
+| `GiftControllerTest`            | administração, paginação e filtro de presentes           |
 | `GuestGiftControllerTest`       | identidade em reserva, compra e cancelamento             |
+| `MessageControllerTest`         | paginação, filtro por autor e validação dos parâmetros   |
 | `GiftServiceTest`               | cotas, duplicidade, expiração, compra e limpeza agendada |
 | `GiftTest`                      | cálculo de disponibilidade e esgotamento                 |
 
@@ -661,8 +691,8 @@ O teste de contexto usa mocks para os quatro repositórios e desabilita apenas a
 | Suíte | Responsabilidade |
 |---|---|
 | `MigrationIntegrationTest` | aplica e valida as migrations em schema vazio; repete a execução sem reaplicar versões; migra um schema legado e preserva o vínculo da reserva com o convidado |
-| `PostgresFlowIntegrationTest` | executa login, JWT, consulta e confirmação de RSVP; associa reserva ao convidado autenticado; disputa concorrente da última cota; cancelamento de reserva expirada |
-| `MongoMessageIntegrationTest` | persiste mensagens no MongoDB real e valida a ordenação da mais recente para a mais antiga |
+| `PostgresFlowIntegrationTest` | executa login, JWT, contratos `401`/`403`, consulta e confirmação de RSVP; pagina e filtra presentes; associa reserva ao convidado autenticado; disputa concorrente da última cota; cancela reserva expirada |
+| `MongoMessageIntegrationTest` | persiste mensagens no MongoDB real e valida paginação, filtro por autor e ordenação da mais recente para a mais antiga |
 
 O perfil `integration` existe apenas no classpath de testes, em `src/test/resources/application-integration.yml`. Ele desativa Swagger e logs SQL detalhados, usa segredos fictícios e recebe as conexões temporárias dinamicamente do Testcontainers.
 
@@ -680,8 +710,8 @@ O JWT é a fonte de identidade do convidado em todas as operações posteriores 
 
 O fluxo HTTP é:
 
-1. `POST /api/auth/login` recebe o código RSVP e retorna JWT, nome e status;
+1. `POST /api/v1/auth/login` recebe o código RSVP e retorna JWT, nome e status;
 2. requisições protegidas enviam `Authorization: Bearer <jwt>`;
-3. `GET /api/rsvp/me` retorna os dados do convidado identificado pelo token;
+3. `GET /api/v1/rsvp/me` retorna os dados do convidado identificado pelo token;
 4. confirmação e recusa recebem somente os dados editáveis de contato e observações;
 5. o backend obtém o `rsvpCode` e o identificador do convidado a partir do principal autenticado, não do corpo das operações posteriores.

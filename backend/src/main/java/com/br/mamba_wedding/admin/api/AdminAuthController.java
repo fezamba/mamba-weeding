@@ -1,5 +1,6 @@
 package com.br.mamba_wedding.admin.api;
 
+import com.br.mamba_wedding.common.api.ApiPaths;
 import com.br.mamba_wedding.common.exception.UnauthorizedException;
 import com.br.mamba_wedding.config.security.TokenService;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
@@ -19,7 +20,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/admin/auth")
+@RequestMapping(ApiPaths.V1 + "/admin/auth")
 public class AdminAuthController {
 
     private final TokenService tokenService;

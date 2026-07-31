@@ -7,6 +7,11 @@ import com.br.mamba_wedding.messages.infrastructure.MessageRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.security.core.userdetails.UserDetailsService;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = {
         "spring.profiles.active=test",
@@ -25,6 +30,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 })
 class MambaWeddingApplicationTests {
 
+    @Autowired ApplicationContext applicationContext;
     @MockitoBean GuestRepository guestRepository;
     @MockitoBean GiftRepository giftRepository;
     @MockitoBean GiftTransactionRepository giftTransactionRepository;
@@ -32,5 +38,6 @@ class MambaWeddingApplicationTests {
 
     @Test
     void contextLoads() {
+        assertThat(applicationContext.getBeansOfType(UserDetailsService.class)).isEmpty();
     }
 }

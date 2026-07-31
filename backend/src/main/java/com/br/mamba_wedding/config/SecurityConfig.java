@@ -13,25 +13,28 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import jakarta.servlet.http.HttpServletResponse;
-
 import java.util.Arrays;
 import java.util.List;
 
 import com.br.mamba_wedding.config.security.SecurityFilter;
+import com.br.mamba_wedding.common.api.ApiErrorWriter;
+import com.br.mamba_wedding.common.api.ApiPaths;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private final SecurityFilter securityFilter;
+    private final ApiErrorWriter apiErrorWriter;
     private final List<String> allowedOrigins;
 
     public SecurityConfig(
             SecurityFilter securityFilter,
+            ApiErrorWriter apiErrorWriter,
             @Value("${app.cors.allowed-origins}") String allowedOrigins
     ) {
         this.securityFilter = securityFilter;
+        this.apiErrorWriter = apiErrorWriter;
         this.allowedOrigins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(origin -> !origin.isEmpty())
@@ -53,12 +56,16 @@ public class SecurityConfig {
 
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint((request, response, exception) ->
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED)))
+                    apiErrorWriter.write(request, response, org.springframework.http.HttpStatus.UNAUTHORIZED,
+                            "Autenticação necessária."))
+                .accessDeniedHandler((request, response, exception) ->
+                    apiErrorWriter.write(request, response, org.springframework.http.HttpStatus.FORBIDDEN,
+                            "Acesso negado.")))
 
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/login").permitAll()
-                .requestMatchers("/api/admin/auth/google").permitAll()
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/messages").permitAll()
+                .requestMatchers(ApiPaths.V1 + "/auth/login").permitAll()
+                .requestMatchers(ApiPaths.V1 + "/admin/auth/google").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, ApiPaths.V1 + "/messages").permitAll()
 
                 .requestMatchers(
                     "/swagger-ui.html",
@@ -66,7 +73,17 @@ public class SecurityConfig {
                     "/v3/api-docs/**"
                 ).permitAll()
 
-                .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
+                .requestMatchers(ApiPaths.V1 + "/admin/**").hasAuthority("ROLE_ADMIN")
+
+                .requestMatchers(ApiPaths.V1 + "/rsvp/**").hasAuthority("ROLE_GUEST")
+                .requestMatchers(org.springframework.http.HttpMethod.POST, ApiPaths.V1 + "/messages")
+                    .hasAuthority("ROLE_GUEST")
+                .requestMatchers(org.springframework.http.HttpMethod.POST,
+                    ApiPaths.V1 + "/gifts/*/reserve",
+                    ApiPaths.V1 + "/gifts/*/buy")
+                    .hasAuthority("ROLE_GUEST")
+                .requestMatchers(org.springframework.http.HttpMethod.DELETE, ApiPaths.V1 + "/gifts/*/reserve")
+                    .hasAuthority("ROLE_GUEST")
 
                 .anyRequest().authenticated()
             )

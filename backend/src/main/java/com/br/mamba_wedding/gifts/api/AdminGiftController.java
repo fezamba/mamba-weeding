@@ -1,5 +1,6 @@
 package com.br.mamba_wedding.gifts.api;
 
+import com.br.mamba_wedding.common.api.ApiPaths;
 import com.br.mamba_wedding.gifts.api.dto.GiftCreate;
 import com.br.mamba_wedding.gifts.api.dto.GiftCreated;
 import com.br.mamba_wedding.gifts.application.GiftService;
@@ -18,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/admin/gifts")
+@RequestMapping(ApiPaths.V1 + "/admin/gifts")
 @RequiredArgsConstructor
 public class AdminGiftController {
 

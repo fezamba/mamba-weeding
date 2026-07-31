@@ -4,6 +4,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 
 import com.br.mamba_wedding.gifts.domain.Gift;
@@ -18,6 +20,13 @@ public interface GiftRepository extends JpaRepository<Gift, Long> {
     @Override
     @EntityGraph(attributePaths = "transactions")
     List<Gift> findAll();
+
+    @Override
+    @EntityGraph(attributePaths = "transactions")
+    Page<Gift> findAll(Pageable pageable);
+
+    @EntityGraph(attributePaths = "transactions")
+    Page<Gift> findByNameContainingIgnoreCase(String name, Pageable pageable);
 
     @Override
     @EntityGraph(attributePaths = "transactions")

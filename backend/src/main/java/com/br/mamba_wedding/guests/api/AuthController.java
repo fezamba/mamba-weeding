@@ -1,5 +1,6 @@
 package com.br.mamba_wedding.guests.api;
 
+import com.br.mamba_wedding.common.api.ApiPaths;
 import com.br.mamba_wedding.config.security.PublicEndpointRateLimiter;
 import com.br.mamba_wedding.config.security.TokenService;
 import com.br.mamba_wedding.guests.api.dto.LoginRequest;
@@ -15,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Duration;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping(ApiPaths.V1 + "/auth")
 public class AuthController {
 
     private final GuestRepository guestRepository;

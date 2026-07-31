@@ -2,6 +2,8 @@ package com.br.mamba_wedding.gifts.application;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.slf4j.Logger;
@@ -41,10 +43,12 @@ public class GiftService {
         this.guestRepository = guestRepository;
     }
 
-    public List<Gift> listAll() {
-        List<Gift> gifts = giftRepository.findAll();
-
-        return gifts;
+    @Transactional(readOnly = true)
+    public Page<Gift> listAll(String name, Pageable pageable) {
+        if (name == null || name.isBlank()) {
+            return giftRepository.findAll(pageable);
+        }
+        return giftRepository.findByNameContainingIgnoreCase(name.trim(), pageable);
     }
 
     public Gift findById(Long giftId){
