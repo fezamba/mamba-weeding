@@ -48,6 +48,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -96,6 +97,16 @@ class PostgresFlowIntegrationTest {
         giftRepository.deleteAll();
         invitationRepository.deleteAll();
         guestRepository.deleteAll();
+        var events = eventRepository.findAll();
+        events.forEach(event -> {
+            event.setDescription(null);
+            event.setEventDateTime(null);
+            event.setVenueName(null);
+            event.setAddress(null);
+            event.setMapUrl(null);
+            event.setDressCode(null);
+        });
+        eventRepository.saveAllAndFlush(events);
     }
 
     @Test
@@ -246,6 +257,42 @@ class PostgresFlowIntegrationTest {
                 .andExpect(jsonPath("$.pending").value(1))
                 .andExpect(jsonPath("$.confirmed").value(1))
                 .andExpect(jsonPath("$.rejected").value(1));
+    }
+
+    @Test
+    void adminEventUpdate_ShouldPersistContentAndExposeItToInvitedGuest() throws Exception {
+        Event wedding = eventRepository.findByType(EventType.WEDDING).orElseThrow();
+        Guest guest = guestRepository.saveAndFlush(newGuest("EVENT01", "Convidada do Evento"));
+        invitationRepository.saveAndFlush(invitation(wedding, guest));
+        String adminToken = tokenService.generateToken("admin@example.com", "ROLE_ADMIN");
+        String guestToken = tokenService.generateToken(guest.getRsvpCode(), "ROLE_GUEST");
+
+        mockMvc.perform(put("/api/v1/admin/events/{eventId}", wedding.getId())
+                        .header("Authorization", "Bearer " + adminToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "eventDateTime": "2027-05-15T16:30:00",
+                                  "venueName": "Espaço Jardim",
+                                  "address": "Rua das Flores, 100",
+                                  "mapUrl": "https://maps.example.com/casamento",
+                                  "description": "Cerimônia e recepção",
+                                  "dressCode": "Esporte fino"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slug").value("casamento"))
+                .andExpect(jsonPath("$.eventDateTime").value("2027-05-15T16:30:00"))
+                .andExpect(jsonPath("$.venueName").value("Espaço Jardim"));
+
+        mockMvc.perform(get("/api/v1/events/my-invitations")
+                        .header("Authorization", "Bearer " + guestToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].eventId").value(wedding.getId()))
+                .andExpect(jsonPath("$[0].description").value("Cerimônia e recepção"))
+                .andExpect(jsonPath("$[0].address").value("Rua das Flores, 100"))
+                .andExpect(jsonPath("$[0].mapUrl").value("https://maps.example.com/casamento"))
+                .andExpect(jsonPath("$[0].dressCode").value("Esporte fino"));
     }
 
     @Test

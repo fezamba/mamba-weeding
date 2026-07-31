@@ -147,7 +147,7 @@ Campos principais:
 - `mapUrl`;
 - `dressCode`.
 
-A migration cadastra os eventos `casamento` e `cha-de-panelas`. Os campos descritivos, de data, local, mapa e traje aceitam valor nulo.
+A migration cadastra os eventos `casamento` e `cha-de-panelas`. Os campos descritivos, de data, local, mapa e traje aceitam valor nulo enquanto o evento ainda não foi configurado. A atualização administrativa exige o conjunto completo desses campos.
 
 #### `event_invitations`
 
@@ -499,7 +499,42 @@ Exclui um convidado existente.
 
 Resposta de sucesso: `204 No Content`.
 
-### 6.6 Administração de confirmações
+### 6.6 Administração de eventos
+
+#### `GET /api/v1/admin/events`
+
+Retorna os eventos ordenados pelo ID. Cada item contém `id`, `slug`, `type`, `title`, `description`, `eventDateTime`, `venueName`, `address`, `mapUrl` e `dressCode`.
+
+#### `GET /api/v1/admin/events/{eventId}`
+
+Retorna os mesmos campos para um evento. Um identificador inexistente produz `404`.
+
+#### `PUT /api/v1/admin/events/{eventId}`
+
+Atualiza o conteúdo configurável do evento:
+
+```json
+{
+  "eventDateTime": "2027-05-15T16:30:00",
+  "venueName": "Espaço Jardim",
+  "address": "Rua das Flores, 100",
+  "mapUrl": "https://maps.example.com/casamento",
+  "description": "Cerimônia e recepção",
+  "dressCode": "Esporte fino"
+}
+```
+
+Todos os campos são obrigatórios. Limites aplicados:
+
+- `venueName`: 120 caracteres;
+- `address`: 255 caracteres;
+- `mapUrl`: 500 caracteres e protocolo HTTP ou HTTPS;
+- `description`: 1.000 caracteres;
+- `dressCode`: 1.000 caracteres.
+
+O endpoint não altera `id`, `slug`, `type` ou `title`. A resposta `200` contém o evento atualizado. Os mesmos dados passam a compor a resposta de `GET /api/v1/events/my-invitations` para os convidados vinculados.
+
+### 6.7 Administração de confirmações
 
 #### `GET /api/v1/admin/events/{eventId}/rsvps`
 
@@ -532,7 +567,7 @@ Retorna as contagens de presença do evento:
 
 As duas rotas retornam `404` quando o evento não existe.
 
-### 6.7 Administração de presentes
+### 6.8 Administração de presentes
 
 #### `POST /api/v1/admin/gifts/register`
 
@@ -557,7 +592,7 @@ Exclui um presente existente e suas transações associadas.
 
 Resposta de sucesso: `204 No Content`.
 
-### 6.8 Login administrativo
+### 6.9 Login administrativo
 
 #### `POST /api/v1/admin/auth/google`
 
@@ -774,6 +809,8 @@ O workflow `.github/workflows/backend-ci.yml` executa `./mvnw clean verify` em J
 | `PublicEndpointRateLimiterTest` | limite, bloqueio e IP encaminhado                        |
 | `SecurityConfigTest`            | origens permitidas e rejeição de CORS curinga            |
 | `AuthControllerTest`            | login, resposta, código inválido e rate limit            |
+| `AdminEventControllerTest`      | consulta, atualização, validação e autorização de eventos |
+| `EventServiceTest`              | consulta e atualização do conteúdo dos eventos            |
 | `EventRsvpControllerTest`       | convites, RSVP por evento e autorização administrativa   |
 | `EventRsvpServiceTest`          | consulta, resposta, listagem e resumo por evento          |
 | `GuestRsvpServiceTest`          | cadastro, exclusão, código e criação dos convites         |
@@ -791,7 +828,7 @@ O teste de contexto usa mocks para os repositórios e desabilita apenas as autoc
 | Suíte | Responsabilidade |
 |---|---|
 | `MigrationIntegrationTest` | aplica e valida as migrations em schema vazio; repete a execução sem reaplicar versões; migra um schema legado; preserva o vínculo da reserva e transfere o RSVP existente para o casamento |
-| `PostgresFlowIntegrationTest` | executa login, JWT, contratos `401`/`403`, convites e RSVP independentes; valida listagem, filtros e resumo administrativos; pagina e filtra presentes; associa reserva ao convidado autenticado; disputa concorrente da última cota; cancela reserva expirada |
+| `PostgresFlowIntegrationTest` | executa login, JWT, contratos `401`/`403`, configuração de eventos, exposição do conteúdo ao convidado, convites e RSVP independentes; valida listagem, filtros e resumo administrativos; pagina e filtra presentes; associa reserva ao convidado autenticado; disputa concorrente da última cota; cancela reserva expirada |
 | `MongoMessageIntegrationTest` | persiste mensagens no MongoDB real e valida paginação, filtro por autor e ordenação da mais recente para a mais antiga |
 
 O perfil `integration` existe apenas no classpath de testes, em `src/test/resources/application-integration.yml`. Ele desativa Swagger e logs SQL detalhados, usa segredos fictícios e recebe as conexões temporárias dinamicamente do Testcontainers.
