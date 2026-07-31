@@ -1,6 +1,12 @@
 package com.br.mamba_wedding.integration;
 
 import com.br.mamba_wedding.config.security.TokenService;
+import com.br.mamba_wedding.events.domain.Event;
+import com.br.mamba_wedding.events.domain.EventInvitation;
+import com.br.mamba_wedding.events.domain.EventType;
+import com.br.mamba_wedding.events.domain.RsvpStatus;
+import com.br.mamba_wedding.events.infrastructure.EventInvitationRepository;
+import com.br.mamba_wedding.events.infrastructure.EventRepository;
 import com.br.mamba_wedding.gifts.application.GiftService;
 import com.br.mamba_wedding.gifts.domain.Gift;
 import com.br.mamba_wedding.gifts.domain.GiftTransaction;
@@ -9,8 +15,9 @@ import com.br.mamba_wedding.gifts.infrastructure.GiftRepository;
 import com.br.mamba_wedding.gifts.infrastructure.GiftTransactionRepository;
 import com.br.mamba_wedding.guests.domain.Guest;
 import com.br.mamba_wedding.guests.domain.GuestSide;
-import com.br.mamba_wedding.guests.domain.GuestStatus;
 import com.br.mamba_wedding.guests.infrastructure.GuestRepository;
+import com.br.mamba_wedding.guests.application.GuestRsvpService;
+import com.br.mamba_wedding.guests.api.dto.GuestCreate;
 import com.br.mamba_wedding.messages.infrastructure.MessageRepository;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
@@ -73,6 +80,9 @@ class PostgresFlowIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private GuestRepository guestRepository;
+    @Autowired private EventRepository eventRepository;
+    @Autowired private EventInvitationRepository invitationRepository;
+    @Autowired private GuestRsvpService guestRsvpService;
     @Autowired private GiftRepository giftRepository;
     @Autowired private GiftTransactionRepository giftTransactionRepository;
     @Autowired private GiftService giftService;
@@ -84,30 +94,37 @@ class PostgresFlowIntegrationTest {
     void cleanDatabase() {
         giftTransactionRepository.deleteAll();
         giftRepository.deleteAll();
+        invitationRepository.deleteAll();
         guestRepository.deleteAll();
     }
 
     @Test
     void loginAndRsvp_ShouldAuthenticateAndPersistConfirmation() throws Exception {
         Guest guest = guestRepository.saveAndFlush(newGuest("RSVP123", "Convidada Integração"));
+        Event wedding = eventRepository.findByType(EventType.WEDDING).orElseThrow();
+        Event shower = eventRepository.findByType(EventType.BRIDAL_SHOWER).orElseThrow();
+        invitationRepository.saveAll(List.of(
+                invitation(wedding, guest),
+                invitation(shower, guest)
+        ));
 
         String loginBody = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"rsvpCode\":\"RSVP123\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fullName").value("Convidada Integração"))
-                .andExpect(jsonPath("$.rsvpStatus").value("PENDING"))
+                .andExpect(jsonPath("$.rsvpStatus").doesNotExist())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
 
         String token = JsonPath.read(loginBody, "$.token");
 
-        mockMvc.perform(get("/api/v1/rsvp/me"))
+        mockMvc.perform(get("/api/v1/events/{eventId}/rsvp/me", wedding.getId()))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401))
                 .andExpect(jsonPath("$.error").value("Unauthorized"))
-                .andExpect(jsonPath("$.path").value("/api/v1/rsvp/me"));
+                .andExpect(jsonPath("$.path").value("/api/v1/events/" + wedding.getId() + "/rsvp/me"));
 
         mockMvc.perform(post("/api/v1/admin/gifts/register")
                         .header("Authorization", "Bearer " + token)
@@ -119,18 +136,26 @@ class PostgresFlowIntegrationTest {
                 .andExpect(jsonPath("$.path").value("/api/v1/admin/gifts/register"));
 
         String adminToken = tokenService.generateToken("admin@example.com", "ROLE_ADMIN");
-        mockMvc.perform(get("/api/v1/rsvp/me")
+        mockMvc.perform(get("/api/v1/events/{eventId}/rsvp/me", wedding.getId())
                         .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value(403));
 
-        mockMvc.perform(get("/api/v1/rsvp/me")
+        mockMvc.perform(get("/api/v1/events/my-invitations")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].type").value("WEDDING"))
+                .andExpect(jsonPath("$[0].rsvpStatus").value("PENDING"))
+                .andExpect(jsonPath("$[1].type").value("BRIDAL_SHOWER"))
+                .andExpect(jsonPath("$[1].rsvpStatus").value("PENDING"));
+
+        mockMvc.perform(get("/api/v1/events/{eventId}/rsvp/me", wedding.getId())
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.fullName").value("Convidada Integração"))
                 .andExpect(jsonPath("$.rsvpStatus").value("PENDING"));
 
-        mockMvc.perform(post("/api/v1/rsvp/confirm")
+        mockMvc.perform(post("/api/v1/events/{eventId}/rsvp/confirm", wedding.getId())
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -143,11 +168,84 @@ class PostgresFlowIntegrationTest {
                 .andExpect(status().isNoContent());
 
         Guest confirmed = guestRepository.findById(guest.getId()).orElseThrow();
-        assertThat(confirmed.getRsvpStatus()).isEqualTo(GuestStatus.CONFIRMED);
-        assertThat(confirmed.getRsvpBy()).isNotNull();
         assertThat(confirmed.getEmail()).isEqualTo("confirmada@example.com");
         assertThat(confirmed.getPhone()).isEqualTo("11988887777");
-        assertThat(confirmed.getNotes()).isEqualTo("Sem restrições");
+        EventInvitation weddingInvitation = invitationRepository
+                .findByEventIdAndGuestId(wedding.getId(), guest.getId()).orElseThrow();
+        EventInvitation showerInvitation = invitationRepository
+                .findByEventIdAndGuestId(shower.getId(), guest.getId()).orElseThrow();
+        assertThat(weddingInvitation.getRsvpStatus()).isEqualTo(RsvpStatus.CONFIRMED);
+        assertThat(weddingInvitation.getRespondedAt()).isNotNull();
+        assertThat(weddingInvitation.getNotes()).isEqualTo("Sem restrições");
+        assertThat(showerInvitation.getRsvpStatus()).isEqualTo(RsvpStatus.PENDING);
+        assertThat(showerInvitation.getRespondedAt()).isNull();
+    }
+
+    @Test
+    void registerGuest_ShouldCreateInvitationForBothEvents() {
+        var created = guestRsvpService.register(new GuestCreate(
+                "Nova convidada", GuestSide.BRIDE, "nova@example.com", "11999999999"));
+        Guest guest = guestRepository.findByRsvpCode(created.rsvpCode()).orElseThrow();
+
+        assertThat(invitationRepository.findAllByGuestIdOrderByEventIdAsc(guest.getId()))
+                .hasSize(2)
+                .allSatisfy(invitation -> assertThat(invitation.getRsvpStatus()).isEqualTo(RsvpStatus.PENDING));
+    }
+
+    @Test
+    void adminRsvpList_ShouldFilterPaginateAndSummarizeEvent() throws Exception {
+        Event wedding = eventRepository.findByType(EventType.WEDDING).orElseThrow();
+        Guest confirmedGuest = guestRepository.saveAndFlush(newGuest("ADMIN01", "Ana Confirmada"));
+        Guest pendingGuest = guestRepository.saveAndFlush(Guest.builder()
+                .fullName("Bruno Pendente")
+                .rsvpCode("ADMIN02")
+                .side(GuestSide.GROOM)
+                .email("bruno@example.com")
+                .phone("11988887777")
+                .build());
+        Guest rejectedGuest = guestRepository.saveAndFlush(newGuest("ADMIN03", "Carla Recusou"));
+
+        invitationRepository.saveAllAndFlush(List.of(
+                EventInvitation.builder()
+                        .event(wedding)
+                        .guest(confirmedGuest)
+                        .rsvpStatus(RsvpStatus.CONFIRMED)
+                        .respondedAt(LocalDateTime.now())
+                        .notes("Sem restrições")
+                        .build(),
+                invitation(wedding, pendingGuest),
+                EventInvitation.builder()
+                        .event(wedding)
+                        .guest(rejectedGuest)
+                        .rsvpStatus(RsvpStatus.REJECTED)
+                        .respondedAt(LocalDateTime.now())
+                        .build()
+        ));
+
+        String adminToken = tokenService.generateToken("admin@example.com", "ROLE_ADMIN");
+
+        mockMvc.perform(get("/api/v1/admin/events/{eventId}/rsvps", wedding.getId())
+                        .header("Authorization", "Bearer " + adminToken)
+                        .param("name", "PENDENTE")
+                        .param("status", "PENDING")
+                        .param("side", "GROOM")
+                        .param("page", "0")
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].guestId").value(pendingGuest.getId()))
+                .andExpect(jsonPath("$.content[0].fullName").value("Bruno Pendente"))
+                .andExpect(jsonPath("$.content[0].rsvpStatus").value("PENDING"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
+
+        mockMvc.perform(get("/api/v1/admin/events/{eventId}/rsvps/summary", wedding.getId())
+                        .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.eventTitle").value("Casamento"))
+                .andExpect(jsonPath("$.total").value(3))
+                .andExpect(jsonPath("$.pending").value(1))
+                .andExpect(jsonPath("$.confirmed").value(1))
+                .andExpect(jsonPath("$.rejected").value(1));
     }
 
     @Test
@@ -254,10 +352,17 @@ class PostgresFlowIntegrationTest {
         return Guest.builder()
                 .fullName(fullName)
                 .rsvpCode(code)
-                .rsvpStatus(GuestStatus.PENDING)
                 .side(GuestSide.BRIDE)
                 .email("guest@example.com")
                 .phone("11999999999")
+                .build();
+    }
+
+    private EventInvitation invitation(Event event, Guest guest) {
+        return EventInvitation.builder()
+                .event(event)
+                .guest(guest)
+                .rsvpStatus(RsvpStatus.PENDING)
                 .build();
     }
 

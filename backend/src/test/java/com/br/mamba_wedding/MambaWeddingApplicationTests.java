@@ -1,5 +1,7 @@
 package com.br.mamba_wedding;
 
+import com.br.mamba_wedding.events.infrastructure.EventInvitationRepository;
+import com.br.mamba_wedding.events.infrastructure.EventRepository;
 import com.br.mamba_wedding.gifts.infrastructure.GiftRepository;
 import com.br.mamba_wedding.gifts.infrastructure.GiftTransactionRepository;
 import com.br.mamba_wedding.guests.infrastructure.GuestRepository;
@@ -32,6 +34,8 @@ class MambaWeddingApplicationTests {
 
     @Autowired ApplicationContext applicationContext;
     @MockitoBean GuestRepository guestRepository;
+    @MockitoBean EventRepository eventRepository;
+    @MockitoBean EventInvitationRepository eventInvitationRepository;
     @MockitoBean GiftRepository giftRepository;
     @MockitoBean GiftTransactionRepository giftTransactionRepository;
     @MockitoBean MessageRepository messageRepository;

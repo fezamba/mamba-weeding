@@ -75,7 +75,7 @@ public class SecurityConfig {
 
                 .requestMatchers(ApiPaths.V1 + "/admin/**").hasAuthority("ROLE_ADMIN")
 
-                .requestMatchers(ApiPaths.V1 + "/rsvp/**").hasAuthority("ROLE_GUEST")
+                .requestMatchers(ApiPaths.V1 + "/events/**").hasAuthority("ROLE_GUEST")
                 .requestMatchers(org.springframework.http.HttpMethod.POST, ApiPaths.V1 + "/messages")
                     .hasAuthority("ROLE_GUEST")
                 .requestMatchers(org.springframework.http.HttpMethod.POST,

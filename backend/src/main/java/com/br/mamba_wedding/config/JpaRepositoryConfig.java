@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
         matchIfMissing = true
 )
 @EnableJpaRepositories(basePackages = {
+        "com.br.mamba_wedding.events.infrastructure",
         "com.br.mamba_wedding.gifts.infrastructure",
         "com.br.mamba_wedding.guests.infrastructure"
 })

@@ -3,8 +3,6 @@ package com.br.mamba_wedding.guests.domain;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
-
 @Getter
 @Setter
 @NoArgsConstructor
@@ -27,12 +25,6 @@ public class Guest {
     private String rsvpCode;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
-    private GuestStatus rsvpStatus;
-
-    private LocalDateTime rsvpBy;
-
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private GuestSide side;
 
@@ -42,6 +34,4 @@ public class Guest {
     @Column(nullable = false, length = 30)
     private String phone;
 
-    @Column(length = 255)
-    private String notes;
 }

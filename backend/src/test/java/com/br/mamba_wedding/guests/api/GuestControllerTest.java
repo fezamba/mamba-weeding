@@ -34,10 +34,9 @@ import com.br.mamba_wedding.guests.application.GuestRsvpService;
 import com.br.mamba_wedding.guests.domain.Guest;
 import com.br.mamba_wedding.guests.domain.GuestNotFoundException;
 import com.br.mamba_wedding.guests.domain.GuestSide;
-import com.br.mamba_wedding.guests.domain.GuestStatus;
 
 @WebMvcTest(
-    controllers = {GuestRsvpController.class, AdminGuestController.class},
+    controllers = AdminGuestController.class,
     excludeFilters = {
         @Filter(type = FilterType.ASSIGNABLE_TYPE, classes = SecurityFilter.class)
     }
@@ -73,8 +72,6 @@ class GuestControllerTest {
     String json =   """
                         {
                         "fullName": "Convidado Teste",
-                        "rsvpCode": "CONV1234",
-                        "rsvpStatus": "PENDING",
                         "side": "BRIDE",
                         "email": "convidado.teste@gmail.com",
                         "phone": "21999999999"
@@ -85,7 +82,6 @@ class GuestControllerTest {
         return Guest.builder()
                 .fullName("Convidado Teste")
                 .rsvpCode("CONV1234")
-                .rsvpStatus(GuestStatus.PENDING)
                 .side(GuestSide.BRIDE)
                 .email("convidado.teste@gmail.com")
                 .phone("21999999999")

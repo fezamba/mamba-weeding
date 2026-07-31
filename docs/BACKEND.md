@@ -7,7 +7,8 @@ Este documento descreve a implementação atual do backend Mamba Wedding: organi
 Áreas funcionais documentadas:
 
 - autenticação de convidados por código RSVP;
-- confirmação ou recusa de presença;
+- convites e confirmações de presença independentes por evento;
+- consulta administrativa de presenças, com filtros, paginação e resumo;
 - autenticação administrativa com Google;
 - cadastro e exclusão administrativa de convidados;
 - cadastro e exclusão administrativa de presentes;
@@ -71,9 +72,14 @@ backend/src/main/java/com/br/mamba_wedding/
 │   ├── application/         regras de presentes e reservas
 │   ├── domain/              entidades e estados
 │   └── infrastructure/      repositórios JPA
+├── events/
+│   ├── api/                 endpoints de eventos e confirmações
+│   ├── application/         regras de RSVP por evento
+│   ├── domain/              eventos, convites e estados de presença
+│   └── infrastructure/      repositórios JPA
 ├── guests/
 │   ├── api/                 endpoints e DTOs
-│   ├── application/         regras de RSVP
+│   ├── application/         cadastro, exclusão e código de acesso
 │   ├── domain/              entidade e enums
 │   └── infrastructure/      repositório JPA
 ├── messages/
@@ -105,13 +111,13 @@ Controller → Service → Repository → Banco
 
 Controllers validam o contrato HTTP e identificam o usuário autenticado. Services concentram as regras de negócio. Repositórios encapsulam a persistência. Entidades representam o domínio persistido.
 
-O escaneamento de persistência é explícito e separado por tecnologia. `JpaRepositoryConfig` registra somente os repositórios de `gifts.infrastructure` e `guests.infrastructure`. `MongoRepositoryConfig` registra somente `messages.infrastructure`. As duas configurações ficam inativas no perfil `test`, no qual os repositórios são substituídos por mocks.
+O escaneamento de persistência é explícito e separado por tecnologia. `JpaRepositoryConfig` registra somente os repositórios de `events.infrastructure`, `gifts.infrastructure` e `guests.infrastructure`. `MongoRepositoryConfig` registra somente `messages.infrastructure`. As duas configurações ficam inativas no perfil `test`, no qual os repositórios são substituídos por mocks.
 
 ## 4. Persistência
 
 ### PostgreSQL
 
-Armazena convidados, presentes e transações de presentes.
+Armazena convidados, eventos, convites, presentes e transações de presentes.
 
 #### `guests`
 
@@ -120,12 +126,41 @@ Campos principais:
 - `id`: identificador interno;
 - `fullName`: nome completo;
 - `rsvpCode`: código único usado no login;
-- `rsvpStatus`: `PENDING`, `CONFIRMED` ou `REJECTED`;
-- `rsvpBy`: data da última resposta;
 - `side`: `BRIDE` ou `GROOM`;
 - `email`;
-- `phone`;
-- `notes`.
+- `phone`.
+
+O convidado representa a identidade compartilhada pelos eventos. O código de acesso e os dados de contato são únicos, enquanto cada confirmação de presença pertence a um convite de evento.
+
+#### `events`
+
+Campos principais:
+
+- `id`;
+- `slug`: identificador textual único;
+- `type`: `WEDDING` ou `BRIDAL_SHOWER`;
+- `title`;
+- `description`;
+- `eventDateTime`;
+- `venueName`;
+- `address`;
+- `mapUrl`;
+- `dressCode`.
+
+A migration cadastra os eventos `casamento` e `cha-de-panelas`. Os campos descritivos, de data, local, mapa e traje aceitam valor nulo.
+
+#### `event_invitations`
+
+Relaciona um convidado a um evento. Campos principais:
+
+- `id`;
+- `event_id`;
+- `guest_id`;
+- `rsvpStatus`: `PENDING`, `CONFIRMED` ou `REJECTED`;
+- `respondedAt`: data da resposta;
+- `notes`: observação específica daquela resposta.
+
+A combinação entre evento e convidado é única. As chaves estrangeiras usam exclusão em cascata, portanto a remoção do evento ou do convidado também remove os convites relacionados.
 
 #### `gifts`
 
@@ -170,13 +205,16 @@ V<versão>__<descrição>.sql
 Migrações existentes:
 
 - `V1__create_initial_schema.sql`: cria convidados, presentes, transações, constraints e índices;
-- `V2__link_gift_transactions_to_guests.sql`: vincula transações ao `guest_id`.
+- `V2__link_gift_transactions_to_guests.sql`: vincula transações ao `guest_id`;
+- `V3__create_events_and_event_rsvps.sql`: cria eventos e convites, transfere o RSVP existente para o casamento e cria o convite pendente do chá de panelas.
 
 O perfil `dsv` usa `baseline-version: 0` e `baseline-on-migrate: true`. Um schema local não vazio e ainda sem histórico do Flyway recebe um registro de baseline na versão `0` antes da execução das migrations. O perfil `prod` lê `FLYWAY_BASELINE_ON_MIGRATE` e usa `false` como valor padrão.
 
 O comando destrutivo `flyway clean` permanece desativado em todos os perfis.
 
 A migração V2 associa registros antigos pelo nome completo. Ela interrompe a inicialização quando encontra convidados homônimos ou uma transação sem convidado correspondente. Essa interrupção protege os dados contra associações silenciosamente incorretas.
+
+A migração V3 preserva `rsvp_status`, `rsvp_by` e `notes` de cada convidado no convite do casamento. Depois da cópia, cria um convite `PENDING` para o chá de panelas e remove essas três colunas de `guests`.
 
 O Flyway armazena o checksum de cada migration aplicada em `flyway_schema_history`. Uma alteração no conteúdo de uma migration já registrada faz a validação falhar. Alterações posteriores de schema são representadas por novos arquivos versionados.
 
@@ -236,7 +274,7 @@ Após a autorização, o backend emite um JWT interno com `ROLE_ADMIN` e o e-mai
 | Público | `POST /api/v1/admin/auth/google` |
 | Público | `GET /api/v1/messages` |
 | Público quando habilitado | Swagger e OpenAPI |
-| `ROLE_GUEST` | RSVP, criação de mensagem e operações de reserva/compra |
+| `ROLE_GUEST` | `/api/v1/events/**`, criação de mensagem e operações de reserva/compra |
 | JWT válido | Consulta de presentes |
 | `ROLE_ADMIN` | `/api/v1/admin/**`, exceto o login Google |
 
@@ -255,7 +293,7 @@ O CORS é aplicado a todas as rotas. As origens são lidas de `CORS_ALLOWED_ORIG
 
 Por padrão, a aplicação executa em `http://localhost:8080`.
 
-As rotas usam o prefixo versionado `/api/v1`. As listagens de presentes e mensagens retornam um envelope paginado estável. A página começa em zero, o tamanho padrão é 20 e o tamanho máximo aceito é 100.
+As rotas usam o prefixo versionado `/api/v1`. As listagens de presentes, mensagens e confirmações administrativas retornam um envelope paginado estável. A página começa em zero, o tamanho padrão é 20 e o tamanho máximo aceito é 100.
 
 Formato das respostas paginadas:
 
@@ -294,34 +332,58 @@ Resposta `200`:
 ```json
 {
   "token": "jwt",
-  "fullName": "Convidado Teste",
-  "rsvpStatus": "PENDING"
+  "fullName": "Convidado Teste"
 }
 ```
 
 O endpoint possui rate limit de 10 tentativas por minuto por combinação de IP e código.
 
-### 6.2 RSVP
+### 6.2 Eventos e RSVP
 
-Dados pessoais de RSVP somente são retornados depois da autenticação.
+Os mesmos convidados participam dos dois eventos, mas cada evento possui estado, data de resposta e observação próprios. Dados pessoais de RSVP somente são retornados depois da autenticação.
 
-#### `GET /api/v1/rsvp/me`
+#### `GET /api/v1/events/my-invitations`
+
+Retorna os convites do convidado autenticado, ordenados pelo ID do evento. Cada item contém:
+
+```json
+{
+  "eventId": 1,
+  "slug": "casamento",
+  "type": "WEDDING",
+  "title": "Casamento",
+  "description": null,
+  "eventDateTime": null,
+  "venueName": null,
+  "address": null,
+  "mapUrl": null,
+  "dressCode": null,
+  "rsvpStatus": "PENDING",
+  "respondedAt": null
+}
+```
+
+#### `GET /api/v1/events/{eventId}/rsvp/me`
 
 Resposta `200`:
 
 ```json
 {
+  "eventId": 1,
+  "eventSlug": "casamento",
+  "eventTitle": "Casamento",
   "fullName": "Convidado Teste",
   "rsvpStatus": "PENDING",
+  "respondedAt": null,
   "email": "guest@example.com",
   "phone": "21999999999",
   "notes": null
 }
 ```
 
-#### `POST /api/v1/rsvp/confirm`
+#### `POST /api/v1/events/{eventId}/rsvp/confirm`
 
-#### `POST /api/v1/rsvp/decline`
+#### `POST /api/v1/events/{eventId}/rsvp/decline`
 
 Ambos recebem:
 
@@ -340,6 +402,8 @@ Validações:
 - observações opcionais, com até 255 caracteres.
 
 Resposta de sucesso: `204 No Content`.
+
+E-mail e telefone pertencem ao convidado e, quando informados na resposta, são atualizados para todas as operações posteriores. Estado, data e observações pertencem somente ao convite indicado por `eventId`. Um convidado sem convite para o evento recebe `404`.
 
 ### 6.3 Presentes
 
@@ -425,6 +489,8 @@ Retorna `200` com a mensagem persistida, incluindo `id`, `author`, `text` e `sen
 
 O código RSVP é gerado com três letras normalizadas do nome e quatro dígitos aleatórios. A aplicação tenta evitar colisões antes de salvar, e o banco também possui restrição única.
 
+O cadastro cria um convite `PENDING` para cada evento existente.
+
 Retorna `201 Created` com `fullName`, `rsvpCode`, `side`, `email` e `phone`.
 
 #### `DELETE /api/v1/admin/guests/{id}/delete`
@@ -433,7 +499,40 @@ Exclui um convidado existente.
 
 Resposta de sucesso: `204 No Content`.
 
-### 6.6 Administração de presentes
+### 6.6 Administração de confirmações
+
+#### `GET /api/v1/admin/events/{eventId}/rsvps`
+
+Lista os convites do evento em um envelope paginado. Parâmetros opcionais:
+
+- `page`: índice da página, a partir de zero;
+- `size`: quantidade de itens, entre 1 e 100;
+- `name`: trecho do nome, sem diferenciação entre maiúsculas e minúsculas;
+- `status`: `PENDING`, `CONFIRMED` ou `REJECTED`;
+- `side`: `BRIDE` ou `GROOM`.
+
+Os filtros podem ser combinados. A ordenação é feita pelo nome do convidado, sem diferenciação entre maiúsculas e minúsculas, e depois pelo ID do convidado.
+
+Cada item contém `guestId`, `fullName`, `side`, `email`, `phone`, `rsvpStatus`, `respondedAt` e `notes`.
+
+#### `GET /api/v1/admin/events/{eventId}/rsvps/summary`
+
+Retorna as contagens de presença do evento:
+
+```json
+{
+  "eventId": 1,
+  "eventTitle": "Casamento",
+  "total": 3,
+  "pending": 1,
+  "confirmed": 1,
+  "rejected": 1
+}
+```
+
+As duas rotas retornam `404` quando o evento não existe.
+
+### 6.7 Administração de presentes
 
 #### `POST /api/v1/admin/gifts/register`
 
@@ -458,7 +557,7 @@ Exclui um presente existente e suas transações associadas.
 
 Resposta de sucesso: `204 No Content`.
 
-### 6.7 Login administrativo
+### 6.8 Login administrativo
 
 #### `POST /api/v1/admin/auth/google`
 
@@ -504,7 +603,7 @@ Mapeamentos principais:
 | `400`  | validação ou argumento inválido            |
 | `401`  | autenticação ausente ou token inválido     |
 | `403`  | usuário autenticado sem permissão          |
-| `404`  | convidado, presente ou recurso inexistente |
+| `404`  | evento, convite, convidado, presente ou recurso inexistente |
 | `405`  | método HTTP não suportado                  |
 | `409`  | conflito de estado ou concorrência         |
 | `429`  | limite de tentativas excedido              |
@@ -675,8 +774,9 @@ O workflow `.github/workflows/backend-ci.yml` executa `./mvnw clean verify` em J
 | `PublicEndpointRateLimiterTest` | limite, bloqueio e IP encaminhado                        |
 | `SecurityConfigTest`            | origens permitidas e rejeição de CORS curinga            |
 | `AuthControllerTest`            | login, resposta, código inválido e rate limit            |
-| `GuestRsvpControllerTest`       | identidade autenticada, `/me`, confirmação e recusa      |
-| `GuestRsvpServiceTest`          | consulta por ID, atualização e geração do código         |
+| `EventRsvpControllerTest`       | convites, RSVP por evento e autorização administrativa   |
+| `EventRsvpServiceTest`          | consulta, resposta, listagem e resumo por evento          |
+| `GuestRsvpServiceTest`          | cadastro, exclusão, código e criação dos convites         |
 | `GuestControllerTest`           | autorização dos endpoints administrativos                |
 | `GiftControllerTest`            | administração, paginação e filtro de presentes           |
 | `GuestGiftControllerTest`       | identidade em reserva, compra e cancelamento             |
@@ -684,21 +784,21 @@ O workflow `.github/workflows/backend-ci.yml` executa `./mvnw clean verify` em J
 | `GiftServiceTest`               | cotas, duplicidade, expiração, compra e limpeza agendada |
 | `GiftTest`                      | cálculo de disponibilidade e esgotamento                 |
 
-O teste de contexto usa mocks para os quatro repositórios e desabilita apenas as autoconfigurações de persistência. Assim, valida controllers, services, segurança, scheduling e demais beans sem exigir PostgreSQL ou MongoDB em execução.
+O teste de contexto usa mocks para os repositórios e desabilita apenas as autoconfigurações de persistência. Assim, valida controllers, services, segurança, scheduling e demais beans sem exigir PostgreSQL ou MongoDB em execução.
 
 ### Testes de integração
 
 | Suíte | Responsabilidade |
 |---|---|
-| `MigrationIntegrationTest` | aplica e valida as migrations em schema vazio; repete a execução sem reaplicar versões; migra um schema legado e preserva o vínculo da reserva com o convidado |
-| `PostgresFlowIntegrationTest` | executa login, JWT, contratos `401`/`403`, consulta e confirmação de RSVP; pagina e filtra presentes; associa reserva ao convidado autenticado; disputa concorrente da última cota; cancela reserva expirada |
+| `MigrationIntegrationTest` | aplica e valida as migrations em schema vazio; repete a execução sem reaplicar versões; migra um schema legado; preserva o vínculo da reserva e transfere o RSVP existente para o casamento |
+| `PostgresFlowIntegrationTest` | executa login, JWT, contratos `401`/`403`, convites e RSVP independentes; valida listagem, filtros e resumo administrativos; pagina e filtra presentes; associa reserva ao convidado autenticado; disputa concorrente da última cota; cancela reserva expirada |
 | `MongoMessageIntegrationTest` | persiste mensagens no MongoDB real e valida paginação, filtro por autor e ordenação da mais recente para a mais antiga |
 
 O perfil `integration` existe apenas no classpath de testes, em `src/test/resources/application-integration.yml`. Ele desativa Swagger e logs SQL detalhados, usa segredos fictícios e recebe as conexões temporárias dinamicamente do Testcontainers.
 
 ## 13. Dados de desenvolvimento
 
-No perfil `dsv`, seeders inserem convidados e presentes quando as respectivas tabelas estão vazias.
+No perfil `dsv`, seeders inserem convidados e presentes quando as respectivas tabelas estão vazias. Para cada convidado inserido, o seeder cria um convite `PENDING` para todos os eventos cadastrados.
 
 - os seeders não executam no perfil de teste;
 - o perfil `dsv` é usado por padrão quando nenhum perfil ativo é informado;
@@ -710,8 +810,10 @@ O JWT é a fonte de identidade do convidado em todas as operações posteriores 
 
 O fluxo HTTP é:
 
-1. `POST /api/v1/auth/login` recebe o código RSVP e retorna JWT, nome e status;
+1. `POST /api/v1/auth/login` recebe o código RSVP e retorna JWT e nome;
 2. requisições protegidas enviam `Authorization: Bearer <jwt>`;
-3. `GET /api/v1/rsvp/me` retorna os dados do convidado identificado pelo token;
-4. confirmação e recusa recebem somente os dados editáveis de contato e observações;
-5. o backend obtém o `rsvpCode` e o identificador do convidado a partir do principal autenticado, não do corpo das operações posteriores.
+3. `GET /api/v1/events/my-invitations` retorna os eventos e seus estados independentes;
+4. `GET /api/v1/events/{eventId}/rsvp/me` retorna o RSVP daquele convite;
+5. confirmação e recusa recebem somente os dados editáveis de contato e observações;
+6. o backend obtém o `rsvpCode` e o identificador do convidado a partir do principal autenticado, não do corpo das operações posteriores;
+7. a alteração de um convite não altera o estado dos demais eventos.

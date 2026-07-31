@@ -73,7 +73,6 @@ class AuthControllerTest {
         Guest guest = Guest.builder()
                 .rsvpCode("ABC1234")
                 .fullName("Convidado Teste")
-                .rsvpStatus(com.br.mamba_wedding.guests.domain.GuestStatus.PENDING)
                 .build();
 
         when(guestRepository.findByRsvpCode("ABC1234")).thenReturn(Optional.of(guest));
@@ -89,7 +88,7 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("jwt-token"))
                 .andExpect(jsonPath("$.fullName").value("Convidado Teste"))
-                .andExpect(jsonPath("$.rsvpStatus").value("PENDING"));
+                .andExpect(jsonPath("$.rsvpStatus").doesNotExist());
 
         verify(rateLimiter).assertAllowed(any(), eq("auth-login"), eq("ABC1234"), eq(10), eq(Duration.ofMinutes(1)));
         verify(tokenService).generateToken("ABC1234", "ROLE_GUEST");

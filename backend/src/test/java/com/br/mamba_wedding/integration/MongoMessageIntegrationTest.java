@@ -1,5 +1,7 @@
 package com.br.mamba_wedding.integration;
 
+import com.br.mamba_wedding.events.infrastructure.EventInvitationRepository;
+import com.br.mamba_wedding.events.infrastructure.EventRepository;
 import com.br.mamba_wedding.gifts.infrastructure.GiftRepository;
 import com.br.mamba_wedding.gifts.infrastructure.GiftTransactionRepository;
 import com.br.mamba_wedding.guests.infrastructure.GuestRepository;
@@ -49,6 +51,8 @@ class MongoMessageIntegrationTest {
     @Autowired private MessageService messageService;
 
     @MockitoBean private GuestRepository guestRepository;
+    @MockitoBean private EventRepository eventRepository;
+    @MockitoBean private EventInvitationRepository eventInvitationRepository;
     @MockitoBean private GiftRepository giftRepository;
     @MockitoBean private GiftTransactionRepository giftTransactionRepository;
 

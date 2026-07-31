@@ -2,70 +2,30 @@ package com.br.mamba_wedding.guests.application;
 
 import com.br.mamba_wedding.guests.api.dto.GuestCreate;
 import com.br.mamba_wedding.guests.api.dto.GuestCreated;
-import com.br.mamba_wedding.guests.api.dto.RsvpResponse;
+import com.br.mamba_wedding.events.domain.EventInvitation;
+import com.br.mamba_wedding.events.domain.RsvpStatus;
+import com.br.mamba_wedding.events.infrastructure.EventInvitationRepository;
+import com.br.mamba_wedding.events.infrastructure.EventRepository;
 import com.br.mamba_wedding.guests.domain.Guest;
 import com.br.mamba_wedding.guests.domain.GuestNotFoundException;
-import com.br.mamba_wedding.guests.domain.GuestStatus;
 import com.br.mamba_wedding.guests.infrastructure.GuestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
-import java.time.LocalDateTime;
 import java.text.Normalizer;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class GuestRsvpService {
 
     private final GuestRepository guestRepository;
+    private final EventRepository eventRepository;
+    private final EventInvitationRepository invitationRepository;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final int MAX_RSVP_GENERATION_ATTEMPTS = 20;
-
-    @Transactional(readOnly = true)
-    public RsvpResponse findCurrent(Long guestId) {
-        Guest guest = guestRepository.findById(guestId)
-                .orElseThrow(GuestNotFoundException::new);
-
-        return new RsvpResponse(
-                guest.getFullName(),
-                guest.getRsvpStatus(),
-                guest.getEmail(),
-                guest.getPhone(),
-                guest.getNotes()
-        );
-    }
-
-    @Transactional
-    public void confirm(Long guestId, String email, String phone, String notes) {
-        Guest guest = guestRepository.findById(guestId)
-                .orElseThrow(GuestNotFoundException::new);
-
-        guest.setRsvpStatus(GuestStatus.CONFIRMED);
-        guest.setRsvpBy(LocalDateTime.now());
-        
-        guest.setEmail(normalizeRequired(email, guest.getEmail()));
-        guest.setPhone(normalizeRequired(phone, guest.getPhone()));
-        guest.setNotes(normalizeOptional(notes));
-
-        guestRepository.save(guest);
-    }
-
-    @Transactional
-    public void decline(Long guestId, String email, String phone, String notes) {
-        Guest guest = guestRepository.findById(guestId)
-                .orElseThrow(GuestNotFoundException::new);
-
-        guest.setRsvpStatus(GuestStatus.REJECTED);
-        guest.setRsvpBy(LocalDateTime.now());
-
-        guest.setEmail(normalizeRequired(email, guest.getEmail()));
-        guest.setPhone(normalizeRequired(phone, guest.getPhone()));
-        guest.setNotes(normalizeOptional(notes));
-
-        guestRepository.save(guest);
-    }
 
     @Transactional
     public GuestCreated register(GuestCreate guestCreate) {
@@ -74,16 +34,14 @@ public class GuestRsvpService {
         Guest guest = Guest.builder()
             .fullName(guestCreate.fullName())
             .rsvpCode(rsvpCode)
-            .rsvpStatus(GuestStatus.PENDING)
             .side(guestCreate.side())
             .email(guestCreate.email())
             .phone(guestCreate.phone())
             .build();
         
         Guest savedGuest = guestRepository.save(guest);
-        GuestCreated guestCreated = new GuestCreated(savedGuest);
-
-        return guestCreated;
+        createInvitations(savedGuest);
+        return new GuestCreated(savedGuest);
     }
 
     @Transactional
@@ -114,17 +72,19 @@ public class GuestRsvpService {
         throw new IllegalStateException("Não foi possível gerar um código RSVP único.");
     }
 
-    private String normalizeRequired(String value, String fallback) {
-        if (value == null || value.trim().isEmpty()) {
-            return fallback;
+    private void createInvitations(Guest guest) {
+        var events = eventRepository.findAllByOrderByIdAsc();
+        if (events.isEmpty()) {
+            throw new IllegalStateException("Nenhum evento cadastrado para vincular o convidado.");
         }
-        return value.trim();
-    }
 
-    private String normalizeOptional(String value) {
-        if (value == null || value.trim().isEmpty()) {
-            return null;
-        }
-        return value.trim();
+        List<EventInvitation> invitations = events.stream()
+                .map(event -> EventInvitation.builder()
+                        .event(event)
+                        .guest(guest)
+                        .rsvpStatus(RsvpStatus.PENDING)
+                        .build())
+                .toList();
+        invitationRepository.saveAll(invitations);
     }
 }

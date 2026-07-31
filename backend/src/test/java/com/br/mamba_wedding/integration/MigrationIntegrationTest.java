@@ -34,7 +34,7 @@ class MigrationIntegrationTest {
         MigrateResult firstRun = flyway.migrate();
         MigrateResult secondRun = flyway.migrate();
 
-        assertThat(firstRun.migrationsExecuted).isEqualTo(2);
+        assertThat(firstRun.migrationsExecuted).isEqualTo(3);
         assertThat(secondRun.migrationsExecuted).isZero();
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
 
@@ -42,11 +42,17 @@ class MigrationIntegrationTest {
             assertThat(tableExists(connection, "guests")).isTrue();
             assertThat(tableExists(connection, "gifts")).isTrue();
             assertThat(tableExists(connection, "gift_transactions")).isTrue();
+            assertThat(tableExists(connection, "events")).isTrue();
+            assertThat(tableExists(connection, "event_invitations")).isTrue();
             assertThat(columnExists(connection, "gift_transactions", "guest_id")).isTrue();
             assertThat(columnExists(connection, "gift_transactions", "guest_name")).isFalse();
+            assertThat(columnExists(connection, "guests", "rsvp_status")).isFalse();
+            assertThat(columnExists(connection, "guests", "rsvp_by")).isFalse();
+            assertThat(columnExists(connection, "guests", "notes")).isFalse();
+            assertThat(queryForLong(connection, "SELECT count(*) FROM events")).isEqualTo(2L);
             assertThat(queryForString(connection,
                     "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1"))
-                    .isEqualTo("2");
+                    .isEqualTo("3");
         }
     }
 
@@ -58,7 +64,7 @@ class MigrationIntegrationTest {
         Flyway flyway = flywayFor(schema, true);
         MigrateResult result = flyway.migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(2);
+        assertThat(result.migrationsExecuted).isEqualTo(3);
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
 
         try (Connection connection = connectionFor(schema)) {
@@ -70,6 +76,31 @@ class MigrationIntegrationTest {
             assertThat(queryForLong(connection,
                     "SELECT count(*) FROM gift_transactions WHERE id = 100 AND status = 'RESERVED'"))
                     .isEqualTo(1L);
+            assertThat(queryForLong(connection, """
+                    SELECT count(*)
+                    FROM event_invitations invitation
+                    JOIN events event ON event.id = invitation.event_id
+                    WHERE invitation.guest_id = 10
+                      AND event.type = 'WEDDING'
+                      AND invitation.rsvp_status = 'CONFIRMED'
+                      AND invitation.responded_at = TIMESTAMP '2026-07-20 14:30:00'
+                      AND invitation.notes = 'Sem glúten'
+                    """))
+                    .isEqualTo(1L);
+            assertThat(queryForLong(connection, """
+                    SELECT count(*)
+                    FROM event_invitations invitation
+                    JOIN events event ON event.id = invitation.event_id
+                    WHERE invitation.guest_id = 10
+                      AND event.type = 'BRIDAL_SHOWER'
+                      AND invitation.rsvp_status = 'PENDING'
+                      AND invitation.responded_at IS NULL
+                      AND invitation.notes IS NULL
+                    """))
+                    .isEqualTo(1L);
+            assertThat(columnExists(connection, "guests", "rsvp_status")).isFalse();
+            assertThat(columnExists(connection, "guests", "rsvp_by")).isFalse();
+            assertThat(columnExists(connection, "guests", "notes")).isFalse();
             assertThat(queryForLong(connection,
                     "SELECT count(*) FROM flyway_schema_history WHERE type = 'BASELINE' AND version = '0'"))
                     .isEqualTo(1L);
@@ -137,10 +168,11 @@ class MigrationIntegrationTest {
                     """);
             statement.execute("""
                     INSERT INTO guests
-                        (id, full_name, rsvp_code, rsvp_status, side, email, phone)
+                        (id, full_name, rsvp_code, rsvp_status, rsvp_by, side, email, phone, notes)
                     VALUES
-                        (10, 'Convidada Legada', 'LEG1234', 'PENDING', 'BRIDE',
-                         'legada@example.com', '11999999999')
+                        (10, 'Convidada Legada', 'LEG1234', 'CONFIRMED',
+                         TIMESTAMP '2026-07-20 14:30:00', 'BRIDE',
+                         'legada@example.com', '11999999999', 'Sem glúten')
                     """);
             statement.execute("""
                     INSERT INTO gifts
