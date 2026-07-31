@@ -1,0 +1,34 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  level:
+    "[org.hibernate.SQL]": WARN
+
+app:
+  cors:
+    allowed-origins: http://localhost:4200
+
+api:
+  security:
+    google:
+      client-id: integration-test-client
+    admin:
+      emails: admin@example.com
+    token:
+      secret: integration-test-secret-with-at-least-32-characters
+      issuer: mamba-integration-test
+      expiration-hours: 2
