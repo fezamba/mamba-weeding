@@ -167,6 +167,7 @@ A combinação entre evento e convidado é única. As chaves estrangeiras usam e
 Campos principais:
 
 - `id`;
+- `event_id`: evento ao qual a lista pertence;
 - `version`: versão usada pelo optimistic locking;
 - `name`;
 - `description`;
@@ -175,7 +176,7 @@ Campos principais:
 - `imageUrl`;
 - `purchaseLink`.
 
-As cotas disponíveis não são armazenadas diretamente. Elas são calculadas subtraindo as transações `RESERVED` e `PURCHASED` do total. Transações `CANCELED` não ocupam cotas.
+Cada presente pertence obrigatoriamente a um único evento. As cotas disponíveis não são armazenadas diretamente. Elas são calculadas subtraindo as transações `RESERVED` e `PURCHASED` do total. Transações `CANCELED` não ocupam cotas.
 
 #### `gift_transactions`
 
@@ -206,7 +207,8 @@ Migrações existentes:
 
 - `V1__create_initial_schema.sql`: cria convidados, presentes, transações, constraints e índices;
 - `V2__link_gift_transactions_to_guests.sql`: vincula transações ao `guest_id`;
-- `V3__create_events_and_event_rsvps.sql`: cria eventos e convites, transfere o RSVP existente para o casamento e cria o convite pendente do chá de panelas.
+- `V3__create_events_and_event_rsvps.sql`: cria eventos e convites, transfere o RSVP existente para o casamento e cria o convite pendente do chá de panelas;
+- `V4__separate_gifts_by_event.sql`: vincula cada presente a um evento e transfere a lista existente para o casamento.
 
 O perfil `dsv` usa `baseline-version: 0` e `baseline-on-migrate: true`. Um schema local não vazio e ainda sem histórico do Flyway recebe um registro de baseline na versão `0` antes da execução das migrations. O perfil `prod` lê `FLYWAY_BASELINE_ON_MIGRATE` e usa `false` como valor padrão.
 
@@ -215,6 +217,8 @@ O comando destrutivo `flyway clean` permanece desativado em todos os perfis.
 A migração V2 associa registros antigos pelo nome completo. Ela interrompe a inicialização quando encontra convidados homônimos ou uma transação sem convidado correspondente. Essa interrupção protege os dados contra associações silenciosamente incorretas.
 
 A migração V3 preserva `rsvp_status`, `rsvp_by` e `notes` de cada convidado no convite do casamento. Depois da cópia, cria um convite `PENDING` para o chá de panelas e remove essas três colunas de `guests`.
+
+A migração V4 adiciona `event_id` aos presentes, associa todos os registros existentes ao evento `WEDDING`, torna a associação obrigatória e cria o índice de consulta por evento.
 
 O Flyway armazena o checksum de cada migration aplicada em `flyway_schema_history`. Uma alteração no conteúdo de uma migration já registrada faz a validação falhar. Alterações posteriores de schema são representadas por novos arquivos versionados.
 
@@ -274,8 +278,7 @@ Após a autorização, o backend emite um JWT interno com `ROLE_ADMIN` e o e-mai
 | Público | `POST /api/v1/admin/auth/google` |
 | Público | `GET /api/v1/messages` |
 | Público quando habilitado | Swagger e OpenAPI |
-| `ROLE_GUEST` | `/api/v1/events/**`, criação de mensagem e operações de reserva/compra |
-| JWT válido | Consulta de presentes |
+| `ROLE_GUEST` | `/api/v1/events/**`, incluindo catálogos e operações de presentes; criação de mensagem |
 | `ROLE_ADMIN` | `/api/v1/admin/**`, exceto o login Google |
 
 Requisições sem autenticação para recursos protegidos recebem `401`. Acesso a `/api/v1/admin/**` sem `ROLE_ADMIN` recebe `403`. Endpoints que alteram RSVP, reservas e mensagens obtêm o objeto `Guest` do principal autenticado criado para tokens `ROLE_GUEST`.
@@ -407,7 +410,7 @@ E-mail e telefone pertencem ao convidado e, quando informados na resposta, são 
 
 ### 6.3 Presentes
 
-#### `GET /api/v1/gifts`
+#### `GET /api/v1/events/{eventId}/gifts`
 
 Parâmetros opcionais:
 
@@ -415,13 +418,13 @@ Parâmetros opcionais:
 - `size`: quantidade de itens, entre 1 e 100;
 - `name`: trecho do nome, sem diferenciação entre maiúsculas e minúsculas.
 
-Os presentes são ordenados por `id` crescente. Cada item contém `id`, `name`, `description`, `value`, `quotaValue`, `totalQuotas`, `availableQuotas`, `imageUrl`, `purchaseLink` e `soldOut`.
+Somente presentes associados ao evento informado são retornados. Eles são ordenados por `id` crescente. Cada item contém `id`, `eventId`, `name`, `description`, `value`, `quotaValue`, `totalQuotas`, `availableQuotas`, `imageUrl`, `purchaseLink` e `soldOut`.
 
-#### `GET /api/v1/gifts/{id}`
+#### `GET /api/v1/events/{eventId}/gifts/{id}`
 
-Retorna `200` com os mesmos campos calculados da listagem para o presente identificado. Um identificador inexistente produz `404`.
+Retorna `200` com os mesmos campos calculados da listagem quando o presente pertence ao evento informado. Evento inexistente ou presente associado a outra lista produz `404`.
 
-#### `POST /api/v1/gifts/{id}/reserve`
+#### `POST /api/v1/events/{eventId}/gifts/{id}/reserve`
 
 ```json
 {
@@ -434,19 +437,20 @@ Regras:
 - mínimo de uma cota;
 - não pode ultrapassar as cotas disponíveis;
 - um convidado não pode manter duas reservas ativas para o mesmo presente;
+- o presente deve pertencer ao evento informado na rota;
 - a reserva pertence ao convidado do JWT;
 - a reserva expira seis horas após sua criação;
 - alterações concorrentes do mesmo presente são serializadas com lock pessimista.
 
 Resposta de sucesso: `204 No Content`.
 
-#### `DELETE /api/v1/gifts/{id}/reserve`
+#### `DELETE /api/v1/events/{eventId}/gifts/{id}/reserve`
 
 Cancela a reserva ativa do convidado autenticado. Um convidado não pode cancelar a reserva de outro.
 
 Resposta de sucesso: `204 No Content`.
 
-#### `POST /api/v1/gifts/{id}/buy`
+#### `POST /api/v1/events/{eventId}/gifts/{id}/buy`
 
 Compra as cotas previamente reservadas pelo convidado autenticado. Uma reserva expirada não pode ser comprada.
 
@@ -569,7 +573,11 @@ As duas rotas retornam `404` quando o evento não existe.
 
 ### 6.8 Administração de presentes
 
-#### `POST /api/v1/admin/gifts/register`
+#### `GET /api/v1/admin/events/{eventId}/gifts`
+
+Lista os presentes do evento em envelope paginado. Aceita `page`, `size` e o filtro `name` com as mesmas regras do catálogo do convidado.
+
+#### `POST /api/v1/admin/events/{eventId}/gifts/register`
 
 ```json
 {
@@ -584,11 +592,11 @@ As duas rotas retornam `404` quando o evento não existe.
 
 Valor e total de cotas devem ser positivos.
 
-Retorna `201 Created` com os dados persistidos e o valor calculado por cota.
+Retorna `201 Created` com `eventId`, os dados persistidos e o valor calculado por cota. Um evento inexistente produz `404`.
 
-#### `DELETE /api/v1/admin/gifts/{id}/delete`
+#### `DELETE /api/v1/admin/events/{eventId}/gifts/{id}/delete`
 
-Exclui um presente existente e suas transações associadas.
+Exclui um presente da lista indicada e suas transações associadas. Um presente de outro evento não pode ser excluído por essa rota.
 
 Resposta de sucesso: `204 No Content`.
 
@@ -815,10 +823,10 @@ O workflow `.github/workflows/backend-ci.yml` executa `./mvnw clean verify` em J
 | `EventRsvpServiceTest`          | consulta, resposta, listagem e resumo por evento          |
 | `GuestRsvpServiceTest`          | cadastro, exclusão, código e criação dos convites         |
 | `GuestControllerTest`           | autorização dos endpoints administrativos                |
-| `GiftControllerTest`            | administração, paginação e filtro de presentes           |
-| `GuestGiftControllerTest`       | identidade em reserva, compra e cancelamento             |
+| `GiftControllerTest`            | listas por evento, administração, paginação e filtros    |
+| `GuestGiftControllerTest`       | identidade e evento em reserva, compra e cancelamento    |
 | `MessageControllerTest`         | paginação, filtro por autor e validação dos parâmetros   |
-| `GiftServiceTest`               | cotas, duplicidade, expiração, compra e limpeza agendada |
+| `GiftServiceTest`               | separação por evento, cotas, expiração, compra e limpeza |
 | `GiftTest`                      | cálculo de disponibilidade e esgotamento                 |
 
 O teste de contexto usa mocks para os repositórios e desabilita apenas as autoconfigurações de persistência. Assim, valida controllers, services, segurança, scheduling e demais beans sem exigir PostgreSQL ou MongoDB em execução.
@@ -827,15 +835,15 @@ O teste de contexto usa mocks para os repositórios e desabilita apenas as autoc
 
 | Suíte | Responsabilidade |
 |---|---|
-| `MigrationIntegrationTest` | aplica e valida as migrations em schema vazio; repete a execução sem reaplicar versões; migra um schema legado; preserva o vínculo da reserva e transfere o RSVP existente para o casamento |
-| `PostgresFlowIntegrationTest` | executa login, JWT, contratos `401`/`403`, configuração de eventos, exposição do conteúdo ao convidado, convites e RSVP independentes; valida listagem, filtros e resumo administrativos; pagina e filtra presentes; associa reserva ao convidado autenticado; disputa concorrente da última cota; cancela reserva expirada |
+| `MigrationIntegrationTest` | aplica e valida as migrations em schema vazio; repete a execução sem reaplicar versões; migra um schema legado; preserva reservas e transfere RSVP e presentes existentes para o casamento |
+| `PostgresFlowIntegrationTest` | executa login, JWT, contratos `401`/`403`, configuração de eventos, convites e RSVP independentes; valida listas de presentes isoladas por evento, filtros, reservas, concorrência e expiração |
 | `MongoMessageIntegrationTest` | persiste mensagens no MongoDB real e valida paginação, filtro por autor e ordenação da mais recente para a mais antiga |
 
 O perfil `integration` existe apenas no classpath de testes, em `src/test/resources/application-integration.yml`. Ele desativa Swagger e logs SQL detalhados, usa segredos fictícios e recebe as conexões temporárias dinamicamente do Testcontainers.
 
 ## 13. Dados de desenvolvimento
 
-No perfil `dsv`, seeders inserem convidados e presentes quando as respectivas tabelas estão vazias. Para cada convidado inserido, o seeder cria um convite `PENDING` para todos os eventos cadastrados.
+No perfil `dsv`, seeders inserem convidados e presentes quando as respectivas tabelas estão vazias. Para cada convidado inserido, o seeder cria um convite `PENDING` para todos os eventos cadastrados. Os presentes de desenvolvimento são associados ao casamento.
 
 - os seeders não executam no perfil de teste;
 - o perfil `dsv` é usado por padrão quando nenhum perfil ativo é informado;

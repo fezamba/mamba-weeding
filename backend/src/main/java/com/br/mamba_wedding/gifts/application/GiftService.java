@@ -10,6 +10,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.br.mamba_wedding.common.exception.NotFoundException;
+import com.br.mamba_wedding.events.domain.Event;
+import com.br.mamba_wedding.events.domain.EventNotFoundException;
+import com.br.mamba_wedding.events.infrastructure.EventRepository;
 import com.br.mamba_wedding.gifts.api.dto.GiftCreate;
 import com.br.mamba_wedding.gifts.api.dto.GiftCreated;
 import com.br.mamba_wedding.gifts.domain.Gift;
@@ -33,34 +36,43 @@ public class GiftService {
     private final GiftTransactionRepository giftTransactionRepository;
     private final PaymentGateway paymentGateway;
     private final GuestRepository guestRepository;
+    private final EventRepository eventRepository;
 
     private static final Logger log = LoggerFactory.getLogger(GiftService.class);
 
-    public GiftService(GiftRepository giftRepository, GiftTransactionRepository giftTransactionRepository, PaymentGateway paymentGateway, GuestRepository guestRepository) {
+    public GiftService(
+            GiftRepository giftRepository,
+            GiftTransactionRepository giftTransactionRepository,
+            PaymentGateway paymentGateway,
+            GuestRepository guestRepository,
+            EventRepository eventRepository
+    ) {
         this.giftRepository = giftRepository;
         this.giftTransactionRepository = giftTransactionRepository;
         this.paymentGateway = paymentGateway;
         this.guestRepository = guestRepository;
+        this.eventRepository = eventRepository;
     }
 
     @Transactional(readOnly = true)
-    public Page<Gift> listAll(String name, Pageable pageable) {
+    public Page<Gift> listAll(Long eventId, String name, Pageable pageable) {
+        requireEvent(eventId);
         if (name == null || name.isBlank()) {
-            return giftRepository.findAll(pageable);
+            return giftRepository.findAllByEventId(eventId, pageable);
         }
-        return giftRepository.findByNameContainingIgnoreCase(name.trim(), pageable);
+        return giftRepository.findAllByEventIdAndNameContainingIgnoreCase(eventId, name.trim(), pageable);
     }
 
-    public Gift findById(Long giftId){
-        Gift gift = giftRepository.findById(giftId)
-            .orElseThrow(() -> new NotFoundException("Presente não encontrado"));;
-        return gift;
+    @Transactional(readOnly = true)
+    public Gift findById(Long eventId, Long giftId){
+        requireEvent(eventId);
+        return giftRepository.findByIdAndEventId(giftId, eventId)
+            .orElseThrow(() -> new NotFoundException("Presente não encontrado para este evento"));
     }
 
     @Transactional
-    public void reserve(Long giftId, Long guestId, int quotas){
-        Gift gift = giftRepository.findByIdForUpdate(giftId)
-                .orElseThrow(() -> new NotFoundException("Presente não encontrado"));
+    public void reserve(Long eventId, Long giftId, Long guestId, int quotas){
+        Gift gift = findByIdForUpdate(eventId, giftId);
         Guest guest = guestRepository.findById(guestId)
                 .orElseThrow(GuestNotFoundException::new);
 
@@ -91,9 +103,8 @@ public class GiftService {
     }
 
     @Transactional
-    public void cancelReserve(Long giftId, Long guestId){
-        Gift gift = giftRepository.findByIdForUpdate(giftId)
-                .orElseThrow(() -> new NotFoundException("Presente não encontrado"));
+    public void cancelReserve(Long eventId, Long giftId, Long guestId){
+        Gift gift = findByIdForUpdate(eventId, giftId);
         
         GiftTransaction transaction = gift.getTransactions().stream()
             .filter(t -> t.getGuest().getId().equals(guestId) && t.getStatus() == TransactionStatus.RESERVED)
@@ -105,9 +116,8 @@ public class GiftService {
         }
 
     @Transactional
-    public void buy(Long giftId, Long guestId){
-        Gift gift = giftRepository.findByIdForUpdate(giftId)
-                .orElseThrow(() -> new NotFoundException("Presente não encontrado"));
+    public void buy(Long eventId, Long giftId, Long guestId){
+        Gift gift = findByIdForUpdate(eventId, giftId);
 
         GiftTransaction transaction = gift.getTransactions().stream()
             .filter(t -> t.getGuest().getId().equals(guestId) && t.getStatus() == TransactionStatus.RESERVED)
@@ -132,9 +142,12 @@ public class GiftService {
     }
 
     @Transactional
-    public GiftCreated register(GiftCreate giftCreate){
+    public GiftCreated register(Long eventId, GiftCreate giftCreate){
+
+        Event event = requireEvent(eventId);
 
         Gift gift = Gift.builder()
+            .event(event)
             .name(giftCreate.name())
             .description(giftCreate.description())
             .value(giftCreate.value())
@@ -144,15 +157,14 @@ public class GiftService {
             .build();
 
         Gift savedGift = giftRepository.save(gift);
-        GiftCreated giftCreated = new GiftCreated(savedGift);
-
-        return giftCreated;
+        return new GiftCreated(savedGift);
     }
 
     @Transactional
-    public void delete(Long giftId){
-        Gift gift = giftRepository.findById(giftId)
-                .orElseThrow(() -> new NotFoundException("Presente não encontrado"));
+    public void delete(Long eventId, Long giftId){
+        requireEvent(eventId);
+        Gift gift = giftRepository.findByIdAndEventId(giftId, eventId)
+                .orElseThrow(() -> new NotFoundException("Presente não encontrado para este evento"));
         
         giftRepository.delete(gift);
     }
@@ -173,5 +185,15 @@ public class GiftService {
         }
 
         giftTransactionRepository.saveAll(expired);
+    }
+
+    private Event requireEvent(Long eventId) {
+        return eventRepository.findById(eventId).orElseThrow(EventNotFoundException::new);
+    }
+
+    private Gift findByIdForUpdate(Long eventId, Long giftId) {
+        requireEvent(eventId);
+        return giftRepository.findByIdAndEventIdForUpdate(giftId, eventId)
+                .orElseThrow(() -> new NotFoundException("Presente não encontrado para este evento"));
     }
 }

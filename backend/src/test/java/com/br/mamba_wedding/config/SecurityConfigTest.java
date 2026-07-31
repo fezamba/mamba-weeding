@@ -19,7 +19,8 @@ class SecurityConfigTest {
 
         UrlBasedCorsConfigurationSource source =
                 (UrlBasedCorsConfigurationSource) securityConfig.corsConfigurationSource();
-        CorsConfiguration configuration = source.getCorsConfiguration(new MockHttpServletRequest("GET", "/api/v1/gifts"));
+        CorsConfiguration configuration = source.getCorsConfiguration(
+                new MockHttpServletRequest("GET", "/api/v1/events/1/gifts"));
 
         assertEquals(
                 java.util.List.of("http://localhost:5173", "https://wedding.example.com"),

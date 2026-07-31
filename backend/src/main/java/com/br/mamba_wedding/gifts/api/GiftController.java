@@ -22,7 +22,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 
 @RestController
-@RequestMapping(ApiPaths.V1 + "/gifts")
+@RequestMapping(ApiPaths.V1 + "/events/{eventId}/gifts")
 @RequiredArgsConstructor
 public class GiftController {
 
@@ -30,36 +30,50 @@ public class GiftController {
 
     @GetMapping
     public ResponseEntity<PageResponse<GiftList>> list(
+            @PathVariable Long eventId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
             @RequestParam(required = false) String name
     ) {
         var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "id"));
-        var response = giftService.listAll(name, pageable).map(GiftList::from);
+        var response = giftService.listAll(eventId, name, pageable).map(GiftList::from);
         return ResponseEntity.ok(PageResponse.from(response));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<GiftDetail> detailGift(@PathVariable Long id){
-        Gift response = giftService.findById(id);
+    public ResponseEntity<GiftDetail> detailGift(@PathVariable Long eventId, @PathVariable Long id){
+        Gift response = giftService.findById(eventId, id);
         return ResponseEntity.ok(GiftDetail.from(response));
     }
 
     @PostMapping("/{id}/reserve")
-    public ResponseEntity<Void> reserve(@PathVariable Long id, @AuthenticationPrincipal Guest loggedGuest, @Valid @RequestBody ReserveRequest request) {
-        giftService.reserve(id, loggedGuest.getId(), request.quotas());
+    public ResponseEntity<Void> reserve(
+            @PathVariable Long eventId,
+            @PathVariable Long id,
+            @AuthenticationPrincipal Guest loggedGuest,
+            @Valid @RequestBody ReserveRequest request
+    ) {
+        giftService.reserve(eventId, id, loggedGuest.getId(), request.quotas());
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}/reserve")
-    public ResponseEntity<Void> cancelReserve(@PathVariable Long id, @AuthenticationPrincipal Guest loggedGuest){
-        giftService.cancelReserve(id, loggedGuest.getId());
+    public ResponseEntity<Void> cancelReserve(
+            @PathVariable Long eventId,
+            @PathVariable Long id,
+            @AuthenticationPrincipal Guest loggedGuest
+    ) {
+        giftService.cancelReserve(eventId, id, loggedGuest.getId());
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/buy")
-    public ResponseEntity<Void> buyGift(@PathVariable Long id, @AuthenticationPrincipal Guest loggedGuest){
-        giftService.buy(id, loggedGuest.getId());
+    public ResponseEntity<Void> buyGift(
+            @PathVariable Long eventId,
+            @PathVariable Long id,
+            @AuthenticationPrincipal Guest loggedGuest
+    ) {
+        giftService.buy(eventId, id, loggedGuest.getId());
         return ResponseEntity.noContent().build();
     }
 }

@@ -137,14 +137,15 @@ class PostgresFlowIntegrationTest {
                 .andExpect(jsonPath("$.error").value("Unauthorized"))
                 .andExpect(jsonPath("$.path").value("/api/v1/events/" + wedding.getId() + "/rsvp/me"));
 
-        mockMvc.perform(post("/api/v1/admin/gifts/register")
+        mockMvc.perform(post("/api/v1/admin/events/{eventId}/gifts/register", wedding.getId())
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value(403))
                 .andExpect(jsonPath("$.error").value("Forbidden"))
-                .andExpect(jsonPath("$.path").value("/api/v1/admin/gifts/register"));
+                .andExpect(jsonPath("$.path").value(
+                        "/api/v1/admin/events/" + wedding.getId() + "/gifts/register"));
 
         String adminToken = tokenService.generateToken("admin@example.com", "ROLE_ADMIN");
         mockMvc.perform(get("/api/v1/events/{eventId}/rsvp/me", wedding.getId())
@@ -298,17 +299,21 @@ class PostgresFlowIntegrationTest {
     @Test
     void giftList_ShouldPaginateFilterAndOrderAgainstPostgres() throws Exception {
         Guest guest = guestRepository.saveAndFlush(newGuest("LIST123", "Convidada da Lista"));
-        giftRepository.saveAndFlush(newGift("Cafeteira", 4));
-        Gift matchingGift = giftRepository.saveAndFlush(newGift("Jogo de panelas", 6));
+        Event wedding = eventRepository.findByType(EventType.WEDDING).orElseThrow();
+        Event shower = eventRepository.findByType(EventType.BRIDAL_SHOWER).orElseThrow();
+        giftRepository.saveAndFlush(newGift(wedding, "Cafeteira", 4));
+        Gift matchingGift = giftRepository.saveAndFlush(newGift(wedding, "Jogo de panelas", 6));
+        giftRepository.saveAndFlush(newGift(shower, "Jogo de panelas do chá", 3));
         String token = tokenService.generateToken(guest.getRsvpCode(), "ROLE_GUEST");
 
-        mockMvc.perform(get("/api/v1/gifts")
+        mockMvc.perform(get("/api/v1/events/{eventId}/gifts", wedding.getId())
                         .header("Authorization", "Bearer " + token)
                         .param("name", "PANELAS")
                         .param("page", "0")
                         .param("size", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(matchingGift.getId()))
+                .andExpect(jsonPath("$.content[0].eventId").value(wedding.getId()))
                 .andExpect(jsonPath("$.content[0].name").value("Jogo de panelas"))
                 .andExpect(jsonPath("$.page").value(0))
                 .andExpect(jsonPath("$.size").value(1))
@@ -319,10 +324,18 @@ class PostgresFlowIntegrationTest {
     @Test
     void reserveEndpoint_ShouldLinkReservationToAuthenticatedGuest() throws Exception {
         Guest guest = guestRepository.saveAndFlush(newGuest("GIFT123", "Convidado do Presente"));
-        Gift gift = giftRepository.saveAndFlush(newGift("Jogo de panelas", 4));
+        Event wedding = eventRepository.findByType(EventType.WEDDING).orElseThrow();
+        Event shower = eventRepository.findByType(EventType.BRIDAL_SHOWER).orElseThrow();
+        Gift gift = giftRepository.saveAndFlush(newGift(wedding, "Jogo de panelas", 4));
         String token = tokenService.generateToken(guest.getRsvpCode(), "ROLE_GUEST");
 
-        mockMvc.perform(post("/api/v1/gifts/{id}/reserve", gift.getId())
+        mockMvc.perform(post("/api/v1/events/{eventId}/gifts/{id}/reserve", shower.getId(), gift.getId())
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"quotas\":2}"))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(post("/api/v1/events/{eventId}/gifts/{id}/reserve", wedding.getId(), gift.getId())
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"quotas\":2}"))
@@ -341,11 +354,14 @@ class PostgresFlowIntegrationTest {
     void reserve_ShouldAllowOnlyOneGuestToTakeTheLastQuota() throws Exception {
         Guest firstGuest = guestRepository.saveAndFlush(newGuest("FIRST01", "Primeira pessoa"));
         Guest secondGuest = guestRepository.saveAndFlush(newGuest("SECOND1", "Segunda pessoa"));
-        Gift gift = giftRepository.saveAndFlush(newGift("Última cota", 1));
+        Event wedding = eventRepository.findByType(EventType.WEDDING).orElseThrow();
+        Gift gift = giftRepository.saveAndFlush(newGift(wedding, "Última cota", 1));
         CyclicBarrier startTogether = new CyclicBarrier(2);
 
-        Callable<Boolean> firstReservation = reservationAttempt(startTogether, gift.getId(), firstGuest.getId());
-        Callable<Boolean> secondReservation = reservationAttempt(startTogether, gift.getId(), secondGuest.getId());
+        Callable<Boolean> firstReservation = reservationAttempt(
+                startTogether, wedding.getId(), gift.getId(), firstGuest.getId());
+        Callable<Boolean> secondReservation = reservationAttempt(
+                startTogether, wedding.getId(), gift.getId(), secondGuest.getId());
 
         try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
             Future<Boolean> firstResult = executor.submit(firstReservation);
@@ -367,7 +383,8 @@ class PostgresFlowIntegrationTest {
     @Test
     void clearExpiredReservations_ShouldCancelExpiredTransaction() {
         Guest guest = guestRepository.saveAndFlush(newGuest("EXPIRE1", "Reserva Expirada"));
-        Gift gift = giftRepository.saveAndFlush(newGift("Reserva temporária", 2));
+        Event wedding = eventRepository.findByType(EventType.WEDDING).orElseThrow();
+        Gift gift = giftRepository.saveAndFlush(newGift(wedding, "Reserva temporária", 2));
         GiftTransaction transaction = giftTransactionRepository.saveAndFlush(GiftTransaction.builder()
                 .gift(gift)
                 .guest(guest)
@@ -383,11 +400,16 @@ class PostgresFlowIntegrationTest {
         assertThat(updated.getStatus()).isEqualTo(TransactionStatus.CANCELED);
     }
 
-    private Callable<Boolean> reservationAttempt(CyclicBarrier barrier, Long giftId, Long guestId) {
+    private Callable<Boolean> reservationAttempt(
+            CyclicBarrier barrier,
+            Long eventId,
+            Long giftId,
+            Long guestId
+    ) {
         return () -> {
             barrier.await(5, SECONDS);
             try {
-                giftService.reserve(giftId, guestId, 1);
+                giftService.reserve(eventId, giftId, guestId, 1);
                 return true;
             } catch (IllegalStateException unavailable) {
                 return false;
@@ -413,8 +435,9 @@ class PostgresFlowIntegrationTest {
                 .build();
     }
 
-    private Gift newGift(String name, int totalQuotas) {
+    private Gift newGift(Event event, String name, int totalQuotas) {
         return Gift.builder()
+                .event(event)
                 .name(name)
                 .description("Presente usado no teste de integração")
                 .value(new BigDecimal("500.00"))

@@ -6,6 +6,7 @@ import java.math.RoundingMode;
 
 public record GiftDetail(
         Long id,
+        Long eventId,
         String name,
         String description,
         BigDecimal value,
@@ -21,6 +22,7 @@ public record GiftDetail(
         
         return new GiftDetail(
                 gift.getId(),
+                gift.getEvent().getId(),
                 gift.getName(),
                 gift.getDescription(),
                 gift.getValue(),

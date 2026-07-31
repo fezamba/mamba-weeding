@@ -34,7 +34,7 @@ class MigrationIntegrationTest {
         MigrateResult firstRun = flyway.migrate();
         MigrateResult secondRun = flyway.migrate();
 
-        assertThat(firstRun.migrationsExecuted).isEqualTo(3);
+        assertThat(firstRun.migrationsExecuted).isEqualTo(4);
         assertThat(secondRun.migrationsExecuted).isZero();
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
 
@@ -45,6 +45,7 @@ class MigrationIntegrationTest {
             assertThat(tableExists(connection, "events")).isTrue();
             assertThat(tableExists(connection, "event_invitations")).isTrue();
             assertThat(columnExists(connection, "gift_transactions", "guest_id")).isTrue();
+            assertThat(columnExists(connection, "gifts", "event_id")).isTrue();
             assertThat(columnExists(connection, "gift_transactions", "guest_name")).isFalse();
             assertThat(columnExists(connection, "guests", "rsvp_status")).isFalse();
             assertThat(columnExists(connection, "guests", "rsvp_by")).isFalse();
@@ -52,7 +53,7 @@ class MigrationIntegrationTest {
             assertThat(queryForLong(connection, "SELECT count(*) FROM events")).isEqualTo(2L);
             assertThat(queryForString(connection,
                     "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1"))
-                    .isEqualTo("3");
+                    .isEqualTo("4");
         }
     }
 
@@ -64,7 +65,7 @@ class MigrationIntegrationTest {
         Flyway flyway = flywayFor(schema, true);
         MigrateResult result = flyway.migrate();
 
-        assertThat(result.migrationsExecuted).isEqualTo(3);
+        assertThat(result.migrationsExecuted).isEqualTo(4);
         assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
 
         try (Connection connection = connectionFor(schema)) {
@@ -75,6 +76,14 @@ class MigrationIntegrationTest {
                     .isEqualTo(10L);
             assertThat(queryForLong(connection,
                     "SELECT count(*) FROM gift_transactions WHERE id = 100 AND status = 'RESERVED'"))
+                    .isEqualTo(1L);
+            assertThat(queryForLong(connection, """
+                    SELECT count(*)
+                    FROM gifts gift
+                    JOIN events event ON event.id = gift.event_id
+                    WHERE gift.id = 20
+                      AND event.type = 'WEDDING'
+                    """))
                     .isEqualTo(1L);
             assertThat(queryForLong(connection, """
                     SELECT count(*)

@@ -78,12 +78,6 @@ public class SecurityConfig {
                 .requestMatchers(ApiPaths.V1 + "/events/**").hasAuthority("ROLE_GUEST")
                 .requestMatchers(org.springframework.http.HttpMethod.POST, ApiPaths.V1 + "/messages")
                     .hasAuthority("ROLE_GUEST")
-                .requestMatchers(org.springframework.http.HttpMethod.POST,
-                    ApiPaths.V1 + "/gifts/*/reserve",
-                    ApiPaths.V1 + "/gifts/*/buy")
-                    .hasAuthority("ROLE_GUEST")
-                .requestMatchers(org.springframework.http.HttpMethod.DELETE, ApiPaths.V1 + "/gifts/*/reserve")
-                    .hasAuthority("ROLE_GUEST")
 
                 .anyRequest().authenticated()
             )

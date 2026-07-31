@@ -1,5 +1,6 @@
 package com.br.mamba_wedding.gifts.domain;
 
+import com.br.mamba_wedding.events.domain.Event;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -21,8 +22,12 @@ public class Gift {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-    @Version
+	@Version
     private Long version;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "event_id", nullable = false)
+    private Event event;
 
 	@Column(nullable = false, length = 120)
 	private String name;

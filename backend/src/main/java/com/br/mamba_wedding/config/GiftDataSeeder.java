@@ -1,5 +1,7 @@
 package com.br.mamba_wedding.config;
 
+import com.br.mamba_wedding.events.domain.EventType;
+import com.br.mamba_wedding.events.infrastructure.EventRepository;
 import lombok.RequiredArgsConstructor;
 
 import java.math.BigDecimal;
@@ -17,6 +19,7 @@ import com.br.mamba_wedding.gifts.infrastructure.GiftRepository;
 public class GiftDataSeeder implements CommandLineRunner {
 
     private final GiftRepository giftRepository;
+    private final EventRepository eventRepository;
 
     @Override
     public void run(String... args) {
@@ -24,7 +27,11 @@ public class GiftDataSeeder implements CommandLineRunner {
             return;
         }
 
+        var wedding = eventRepository.findByType(EventType.WEDDING)
+                .orElseThrow(() -> new IllegalStateException("Evento do casamento não cadastrado."));
+
         Gift gift1 = Gift.builder()
+            .event(wedding)
             .name("Geladeira")
             .description("Geladeira cinza")
             .value(new BigDecimal("2500.00"))
@@ -34,6 +41,7 @@ public class GiftDataSeeder implements CommandLineRunner {
             .build();
 
         Gift gift2 = Gift.builder()
+            .event(wedding)
             .name("Sofá 3 Lugares")
             .description("Sofá retrátil e reclinável, cor bege")
             .value(new BigDecimal("3200.00"))
@@ -43,6 +51,7 @@ public class GiftDataSeeder implements CommandLineRunner {
             .build();
 
         Gift gift3 = Gift.builder()
+            .event(wedding)
             .name("Televisão 55\" 4K")
             .description("Smart TV 55 polegadas UHD")
             .value(new BigDecimal("3800.00"))

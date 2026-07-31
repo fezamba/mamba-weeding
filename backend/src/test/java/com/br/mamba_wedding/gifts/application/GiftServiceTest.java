@@ -1,5 +1,9 @@
 package com.br.mamba_wedding.gifts.application;
 
+import com.br.mamba_wedding.events.domain.Event;
+import com.br.mamba_wedding.events.domain.EventType;
+import com.br.mamba_wedding.events.infrastructure.EventRepository;
+import com.br.mamba_wedding.gifts.api.dto.GiftCreate;
 import com.br.mamba_wedding.gifts.domain.Gift;
 import com.br.mamba_wedding.gifts.domain.GiftTransaction;
 import com.br.mamba_wedding.gifts.domain.TransactionStatus;
@@ -21,6 +25,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -32,24 +39,40 @@ class GiftServiceTest {
     @Mock GiftTransactionRepository giftTransactionRepository;
     @Mock PaymentGateway paymentGateway;
     @Mock GuestRepository guestRepository;
+    @Mock EventRepository eventRepository;
     @InjectMocks GiftService giftService;
 
     private Gift gift;
     private Guest guest;
+    private Event wedding;
 
     @BeforeEach
     void setUp() {
         guest = Guest.builder().id(10L).fullName("Convidado Teste").build();
-        gift = Gift.builder().id(1L).name("Televisão").value(new BigDecimal("3000.00"))
+        wedding = Event.builder().id(5L).type(EventType.WEDDING).title("Casamento").build();
+        gift = Gift.builder().id(1L).event(wedding).name("Televisão").value(new BigDecimal("3000.00"))
                 .totalQuotas(3).transactions(new ArrayList<>()).build();
+        lenient().when(eventRepository.findById(5L)).thenReturn(Optional.of(wedding));
+    }
+
+    @Test
+    void listAll_ShouldFilterByEventAndName() {
+        var pageable = PageRequest.of(0, 20);
+        when(giftRepository.findAllByEventIdAndNameContainingIgnoreCase(5L, "tele", pageable))
+                .thenReturn(new PageImpl<>(List.of(gift), pageable, 1));
+
+        var result = giftService.listAll(5L, "  tele  ", pageable);
+
+        assertEquals(List.of(gift), result.getContent());
+        verify(giftRepository).findAllByEventIdAndNameContainingIgnoreCase(5L, "tele", pageable);
     }
 
     @Test
     void reserve_ShouldAssociateReservationWithGuest() {
-        when(giftRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(gift));
+        when(giftRepository.findByIdAndEventIdForUpdate(1L, 5L)).thenReturn(Optional.of(gift));
         when(guestRepository.findById(10L)).thenReturn(Optional.of(guest));
 
-        giftService.reserve(1L, 10L, 2);
+        giftService.reserve(5L, 1L, 10L, 2);
 
         GiftTransaction transaction = gift.getTransactions().getFirst();
         assertSame(guest, transaction.getGuest());
@@ -60,21 +83,21 @@ class GiftServiceTest {
 
     @Test
     void reserve_ShouldRejectUnavailableQuotas() {
-        when(giftRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(gift));
+        when(giftRepository.findByIdAndEventIdForUpdate(1L, 5L)).thenReturn(Optional.of(gift));
         when(guestRepository.findById(10L)).thenReturn(Optional.of(guest));
 
-        assertThrows(IllegalStateException.class, () -> giftService.reserve(1L, 10L, 4));
+        assertThrows(IllegalStateException.class, () -> giftService.reserve(5L, 1L, 10L, 4));
         verify(giftRepository, never()).save(any());
     }
 
     @Test
     void reserve_ShouldRejectSecondActiveReservationForSameGuest() {
         gift.getTransactions().add(activeReservation());
-        when(giftRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(gift));
+        when(giftRepository.findByIdAndEventIdForUpdate(1L, 5L)).thenReturn(Optional.of(gift));
         when(guestRepository.findById(10L)).thenReturn(Optional.of(guest));
 
         IllegalStateException error = assertThrows(IllegalStateException.class,
-                () -> giftService.reserve(1L, 10L, 1));
+                () -> giftService.reserve(5L, 1L, 10L, 1));
 
         assertEquals("Você já possui uma reserva ativa deste presente.", error.getMessage());
     }
@@ -83,9 +106,9 @@ class GiftServiceTest {
     void buy_ShouldProcessActiveReservation() {
         GiftTransaction reservation = activeReservation();
         gift.getTransactions().add(reservation);
-        when(giftRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(gift));
+        when(giftRepository.findByIdAndEventIdForUpdate(1L, 5L)).thenReturn(Optional.of(gift));
 
-        giftService.buy(1L, 10L);
+        giftService.buy(5L, 1L, 10L);
 
         verify(paymentGateway).processPayment(eq(reservation), eq(new BigDecimal("1000.00")));
         assertEquals(TransactionStatus.PURCHASED, reservation.getStatus());
@@ -98,9 +121,9 @@ class GiftServiceTest {
         GiftTransaction reservation = activeReservation();
         reservation.setReservedUntil(LocalDateTime.now().minusMinutes(1));
         gift.getTransactions().add(reservation);
-        when(giftRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(gift));
+        when(giftRepository.findByIdAndEventIdForUpdate(1L, 5L)).thenReturn(Optional.of(gift));
 
-        assertThrows(IllegalStateException.class, () -> giftService.buy(1L, 10L));
+        assertThrows(IllegalStateException.class, () -> giftService.buy(5L, 1L, 10L));
         verifyNoInteractions(paymentGateway);
     }
 
@@ -108,9 +131,9 @@ class GiftServiceTest {
     void cancel_ShouldOnlyCancelAuthenticatedGuestsReservation() {
         GiftTransaction reservation = activeReservation();
         gift.getTransactions().add(reservation);
-        when(giftRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(gift));
+        when(giftRepository.findByIdAndEventIdForUpdate(1L, 5L)).thenReturn(Optional.of(gift));
 
-        giftService.cancelReserve(1L, 10L);
+        giftService.cancelReserve(5L, 1L, 10L);
 
         assertEquals(TransactionStatus.CANCELED, reservation.getStatus());
     }
@@ -126,6 +149,22 @@ class GiftServiceTest {
 
         assertEquals(TransactionStatus.CANCELED, expired.getStatus());
         verify(giftTransactionRepository).saveAll(anyList());
+    }
+
+    @Test
+    void register_ShouldAssociateGiftWithRequestedEvent() {
+        when(giftRepository.save(any(Gift.class))).thenAnswer(invocation -> {
+            Gift saved = invocation.getArgument(0);
+            saved.setId(20L);
+            return saved;
+        });
+
+        var created = giftService.register(5L, new GiftCreate(
+                "Liquidificador", "Potente", new BigDecimal("300.00"), 3,
+                "https://example.com/image.jpg", "https://example.com/product"));
+
+        assertEquals(5L, created.eventId());
+        verify(giftRepository).save(argThat(saved -> saved.getEvent() == wedding));
     }
 
     private GiftTransaction activeReservation() {

@@ -54,40 +54,40 @@ class GuestGiftControllerTest {
 
     @Test
     void reserve_ShouldUseAuthenticatedGuestId() throws Exception {
-        mockMvc.perform(post("/api/v1/gifts/3/reserve")
+        mockMvc.perform(post("/api/v1/events/5/gifts/3/reserve")
                         .with(authentication(guestAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"quotas\":2}"))
                 .andExpect(status().isNoContent());
 
-        verify(giftService).reserve(3L, 9L, 2);
+        verify(giftService).reserve(5L, 3L, 9L, 2);
     }
 
     @Test
     void reserve_ShouldRejectNonPositiveQuota() throws Exception {
-        mockMvc.perform(post("/api/v1/gifts/3/reserve")
+        mockMvc.perform(post("/api/v1/events/5/gifts/3/reserve")
                         .with(authentication(guestAuthentication()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"quotas\":0}"))
                 .andExpect(status().isBadRequest());
 
-        verify(giftService, never()).reserve(anyLong(), anyLong(), anyInt());
+        verify(giftService, never()).reserve(anyLong(), anyLong(), anyLong(), anyInt());
     }
 
     @Test
     void cancel_ShouldUseAuthenticatedGuestId() throws Exception {
-        mockMvc.perform(delete("/api/v1/gifts/3/reserve").with(authentication(guestAuthentication())))
+        mockMvc.perform(delete("/api/v1/events/5/gifts/3/reserve").with(authentication(guestAuthentication())))
                 .andExpect(status().isNoContent());
 
-        verify(giftService).cancelReserve(3L, 9L);
+        verify(giftService).cancelReserve(5L, 3L, 9L);
     }
 
     @Test
     void buy_ShouldUseAuthenticatedGuestId() throws Exception {
-        mockMvc.perform(post("/api/v1/gifts/3/buy").with(authentication(guestAuthentication())))
+        mockMvc.perform(post("/api/v1/events/5/gifts/3/buy").with(authentication(guestAuthentication())))
                 .andExpect(status().isNoContent());
 
-        verify(giftService).buy(3L, 9L);
+        verify(giftService).buy(5L, 3L, 9L);
     }
 
     private UsernamePasswordAuthenticationToken guestAuthentication() {

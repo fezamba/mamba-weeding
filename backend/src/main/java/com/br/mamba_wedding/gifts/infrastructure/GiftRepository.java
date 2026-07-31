@@ -18,21 +18,26 @@ import java.util.Optional;
 public interface GiftRepository extends JpaRepository<Gift, Long> {
 
     @Override
-    @EntityGraph(attributePaths = "transactions")
+    @EntityGraph(attributePaths = {"event", "transactions"})
     List<Gift> findAll();
 
-    @Override
-    @EntityGraph(attributePaths = "transactions")
-    Page<Gift> findAll(Pageable pageable);
+    @EntityGraph(attributePaths = {"event", "transactions"})
+    Page<Gift> findAllByEventId(Long eventId, Pageable pageable);
 
-    @EntityGraph(attributePaths = "transactions")
-    Page<Gift> findByNameContainingIgnoreCase(String name, Pageable pageable);
+    @EntityGraph(attributePaths = {"event", "transactions"})
+    Page<Gift> findAllByEventIdAndNameContainingIgnoreCase(Long eventId, String name, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"event", "transactions"})
+    Optional<Gift> findByIdAndEventId(Long id, Long eventId);
 
     @Override
-    @EntityGraph(attributePaths = "transactions")
+    @EntityGraph(attributePaths = {"event", "transactions"})
     Optional<Gift> findById(Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select gift from Gift gift where gift.id = :id")
-    Optional<Gift> findByIdForUpdate(@Param("id") Long id);
+    @Query("select gift from Gift gift where gift.id = :giftId and gift.event.id = :eventId")
+    Optional<Gift> findByIdAndEventIdForUpdate(
+            @Param("giftId") Long giftId,
+            @Param("eventId") Long eventId
+    );
 }
